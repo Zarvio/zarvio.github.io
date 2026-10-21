@@ -1,87 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trenndly – YouTube Tags, Hashtags &amp; Titles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{if(localStorage.getItem("trendly_auth")==="1")document.documentElement.classList.add("was-in");var th=localStorage.getItem("trendly_theme");if(th==="dark"||th==="light")document.documentElement.dataset.theme=th}catch(e){}</script>
+<link rel="icon" type="image/png" sizes="any" href="logo.png?v=2">
+<link rel="shortcut icon" type="image/png" href="logo.png?v=2">
+<link rel="apple-touch-icon" href="logo.png?v=2">
+<meta name="theme-color" content="#10A37F">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-
-<!-- Intro Overlay -->
-<!-- Intro Overlay -->
-<div id="introOverlay">
-    <div class="introContent">
-        <img src="default.jpg" alt="Pinora Logo" id="introLogo">
-        <div class="versionText">Version 1.0</div>
+<!-- ============ HOME ============ -->
+<div id="homeView">
+  <header class="top">
+    <div class="left">
+      <span class="sk-ic" id="skMenu" aria-hidden="true"></span>
+      <button class="menu-btn hidden" id="menuBtn" aria-label="Open menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      </button>
+      <a class="brand" href="#" id="brandHome"><img class="logo" src="logo.png" alt="Trenndly logo">Trenndly</a>
     </div>
+
+    <div class="right">
+      <button class="icon-btn theme-btn" id="themeBtn" aria-label="Switch theme">
+        <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+
+      <div id="guestActions" class="actions">
+        <button class="btn ghost" id="openLogin">Log in</button>
+        <button class="btn" id="openSignup">Sign up</button>
+      </div>
+
+      <span class="sk-av" id="skAvatar" aria-hidden="true"></span>
+      <div id="userMenu" class="usermenu hidden">
+        <button class="avatar" id="avatarBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu"></button>
+        <div class="pop hidden" id="pop" role="menu">
+          <div class="pop-email" id="popEmail"></div>
+          <a class="pop-item hidden" id="adminLink" href="admin.html" role="menuitem">Admin panel</a>
+          <button class="pop-item" id="logoutBtn" role="menuitem">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="glow" aria-hidden="true"></div>
+
+    <button class="whatsnew hidden" id="wnew" aria-label="Dismiss update notice">
+      <span class="new-badge">New</span>
+      <span>SEO score, copy all, dark mode</span>
+      <i class="wn-x" aria-hidden="true">&times;</i>
+    </button>
+
+    <h1 class="headline">What video are we optimizing today?</h1>
+    <p class="sub">Upload a video and get tags, hashtags, keywords and titles for YouTube.</p>
+    <div class="chips" aria-hidden="true"><span>Tags</span><span>Hashtags</span><span>Other</span></div>
+
+    <div class="drop" id="drop">
+      <input type="file" id="file" accept="video/*" class="hidden">
+      <div class="drop-empty" id="dropEmpty">
+        <p>Drag and drop a video here (max <span class="maxmb">300</span> MB)</p>
+        <button class="btn dark" id="pick">Choose video</button>
+      </div>
+      <div class="fname" id="fname"></div>
+      <div class="preview" id="preview"></div>
+    </div>
+
+    <div class="btnrow hidden" id="btnRow">
+      <button class="btn" id="go">Analyze video</button>
+      <button class="btn ghost" id="again">Upload another video</button>
+    </div>
+    <div class="err hidden" id="errBox" role="alert"></div>
+
+    <div class="skel hidden" id="skel" aria-live="polite">
+      <div class="loader-card">
+        <div class="strip">
+          <i class="fr"></i><i class="fr"></i><i class="fr"></i><i class="fr"></i><i class="fr"></i><i class="fr"></i>
+          <b class="scan"></b>
+        </div>
+        <div class="wave" id="wave" aria-hidden="true"></div>
+        <ul class="ls" id="ls">
+          <li><span class="ic"></span>Reading your video</li>
+          <li><span class="ic"></span>Watching every scene</li>
+          <li><span class="ic"></span>Listening to the audio</li>
+          <li><span class="ic"></span>Writing tags and titles</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="results hidden" id="results">
+      <div class="box score">
+        <div class="ring">
+          <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="rt" cx="22" cy="22" r="19"/><circle class="rf" id="ringFill" cx="22" cy="22" r="19"/></svg>
+          <b id="scoreNum">0</b>
+        </div>
+        <div class="score-txt">
+          <h3>SEO score</h3>
+          <p id="scoreMsg"></p>
+        </div>
+        <button class="btn sm" id="copyAll">Copy all</button>
+      </div>
+      <div class="box">
+        <header><h3>Tags<small id="tagsInfo"></small></h3><button class="btn sm ghost" data-copy="tags">Copy</button></header>
+        <textarea id="tags" readonly></textarea>
+        <div class="tagchips" id="tagChips"></div>
+        <p class="chip-hint">Using the YouTube mobile app? Tap a tag to copy it, then paste it as a single tag.</p>
+      </div>
+      <div class="box">
+        <header><h3>Hashtags<small id="hashInfo"></small></h3><button class="btn sm ghost" data-copy="hashtags">Copy</button></header>
+        <textarea id="hashtags" readonly></textarea>
+      </div>
+      <div class="box">
+        <header><h3>Keywords<small id="kwInfo"></small></h3><button class="btn sm ghost" data-copy="keywords">Copy</button></header>
+        <textarea id="keywords" readonly></textarea>
+      </div>
+      <div class="box">
+        <header><h3>Titles<small>5 titles</small></h3></header>
+        <ul class="titles" id="titles"></ul>
+      </div>
+    </div>
+  </main>
+
+  <section class="sec" id="how">
+    <h2 class="rv">How it works</h2>
+    <div class="steps">
+      <div class="step rv"><b>1</b><h3>Upload your video</h3><p>Choose any video up to <span class="maxmb">300</span> MB from your phone or computer.</p></div>
+      <div class="step rv"><b>2</b><h3>AI watches it fully</h3><p>Trenndly reviews the visuals and the audio to understand your content.</p></div>
+      <div class="step rv"><b>3</b><h3>Copy and publish</h3><p>Get ready-to-use SEO data and paste it straight into YouTube.</p></div>
+    </div>
+  </section>
+
+  <section class="sec" id="features">
+    <h2 class="rv">Everything you need to rank</h2>
+    <div class="cards">
+      <article class="card rv"><h3>Smart tags</h3><p>10 to 15 tags that mix short and long-tail searches, with a live character counter.</p></article>
+      <article class="card rv"><h3>20 hashtags</h3><p>Relevant hashtags matched to your niche and ready to paste.</p></article>
+      <article class="card rv"><h3>Search keywords</h3><p>Phrases people actually type into YouTube search.</p></article>
+      <article class="card rv"><h3>5 click-worthy titles</h3><p>Honest, catchy titles under 70 characters, with a length check on each.</p></article>
+      <article class="card rv"><h3>SEO score</h3><p>See an instant score for your results and copy everything in one tap.</p></article>
+      <article class="card rv"><h3>Sees and hears</h3><p>Analysis uses both what appears on screen and what is said.</p></article>
+      <article class="card rv"><h3>Private by design</h3><p>Your video is deleted automatically as soon as the analysis finishes.</p></article>
+    </div>
+  </section>
+
+  <section class="sec narrow" id="faq">
+    <h2 class="rv">Frequently asked questions</h2>
+    <details class="rv"><summary>Is Trenndly free to use?</summary><p>Yes. Create an account and start analyzing videos.</p></details>
+    <details class="rv"><summary>What happens to my video?</summary><p>It is used only for analysis and is deleted automatically as soon as the analysis finishes.</p></details>
+    <details class="rv"><summary>What video size is supported?</summary><p>Videos up to <span class="maxmb">300</span> MB in any common format.</p></details>
+    <details class="rv"><summary>Why do I need to log in?</summary><p>An account keeps the service secure and prevents misuse.</p></details>
+  </section>
+
+  <footer class="foot">
+    <a class="brand" href="#"><img class="logo" src="logo.png" alt="">Trenndly</a>
+    <a href="#" class="foot-link hidden" id="fbLink">Contact us</a>
+    <span>&copy; <span id="yr"></span> Trenndly. All rights reserved.</span>
+  </footer>
+  <button class="fab hidden" id="fbOpen" aria-label="Share a problem or feedback">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span>Feedback</span>
+  </button>
 </div>
 
-<style>
-/* Fullscreen white overlay */
-/* Fullscreen white overlay */
-#introOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
+<!-- ============ HISTORY PAGE ============ -->
+<section id="historyView" class="hidden">
+  <header class="top">
+    <div class="left">
+      <button class="menu-btn" id="hBack" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="brand">History</span>
+    </div>
+  </header>
+  <div class="hmain">
+    <div class="note">Your history is saved for 7 days only. After that it is deleted automatically.</div>
+    <div class="hlist" id="hList"></div>
+  </div>
+</section>
 
-.introContent {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
+<!-- ============ AUTH PAGE ============ -->
+<section id="authView" class="hidden">
+  <div class="auth-top"><a class="brand" href="#" id="brandAuth"><img class="logo" src="logo.png" alt="Trenndly logo">Trenndly</a></div>
+  <div class="auth">
+    <h1 id="authTitle">Welcome back</h1>
+    <label for="aEmail" class="sr">Email</label>
+    <div id="nameWrap" class="hidden">
+      <input id="aName" type="text" placeholder="Username" autocomplete="nickname" aria-label="Username">
+    </div>
+    <input id="aEmail" type="email" placeholder="Email address" autocomplete="email">
+    <input id="aPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <button class="btn wide" id="authBtn">Continue</button>
+    <div class="msg" id="authMsg" role="alert"></div>
+    <div class="switch"><span id="switchText">Don't have an account?</span> <a id="switchLink" href="#">Sign up</a></div>
+    <div class="or"><span>OR</span></div>
+    <button class="alt" id="googleBtn">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+</section>
 
-.versionText {
-    margin-top: 18px;
-    font-size: 28px;       /* big size */
-    font-weight: 600;
-    color: #444;
-    font-family: Arial, sans-serif;
-    letter-spacing: 1px;
-}
+<!-- ============ LOGIN-REQUIRED MODAL ============ -->
+<div class="overlay hidden" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal">
+    <h2 id="mTitle">Please log in first</h2>
+    <p>You need to be logged in to analyze your video.</p>
+    <button class="btn wide" id="modalOk">OK</button>
+  </div>
+</div>
 
+<!-- ============ SIDE MENU ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <span class="brand"><img class="logo" src="logo.png" alt="">Trenndly</span>
+    <button class="menu-btn" id="drawerClose" aria-label="Close menu">&times;</button>
+  </div>
+  <nav class="drawer-nav">
+    <button class="nav-item" id="navHistory">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      History
+    </button>
+  </nav>
+</aside>
 
-/* Logo initial state chhota + animation */
-#introLogo {
-    width: 320px;   /* pehle 150px tha */
-    transform: scale(0.4); /* start aur chhota se */
-    opacity: 0;
-    animation: scaleFade 3s ease-in-out forwards;
-}
+<!-- ============ FIRST-TIME TUTORIAL ============ -->
+<div class="tut hidden" id="tut" aria-live="polite">
+  <span class="hand-wrap" aria-hidden="true"><i class="fa-solid fa-hand-pointer hand"></i></span>
+  <div class="tut-bubble" id="tutBubble"><span id="tutText"></span></div>
+</div>
 
-/* Animation: scale up and fade out */
-@keyframes scaleFade {
-    0% {
-        transform: scale(0.5);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
-    80% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0;
-    }
-}
-</style>
+<!-- ============ FEEDBACK MODAL ============ -->
+<div class="overlay hidden" id="fbModal" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+  <div class="modal fb">
+    <button class="x" id="fbClose" aria-label="Close">&times;</button>
+    <div id="fbBody">
+      <h2 id="fbTitle">Share your problem</h2>
+      <p>Tell us what went wrong or how we can improve. We will reply on your account email.</p>
+      <div class="seg" id="fbType">
+        <button class="on" data-t="problem">Problem</button>
+        <button data-t="suggestion">Suggestion</button>
+        <button data-t="other">Other</button>
+      </div>
+      <textarea id="fbMsg" maxlength="1000" placeholder="Describe what happened..."></textarea>
+      <div class="fb-count"><span id="fbCount">0</span>/1000</div>
+      <input id="fbHp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="msg" id="fbErr" role="alert"></div>
+      <button class="btn wide" id="fbSend">Send</button>
+    </div>
+    <div id="fbDone" class="hidden">
+      <div class="done-ic"></div>
+      <h2>Thank you!</h2>
+      <p>We received your message and will look into it.</p>
+      <button class="btn wide" id="fbOk">Done</button>
+    </div>
+  </div>
+</div>
 
-<script>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-// Page load ke baad 3 sec me overlay hide kar do
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        const overlay = document.getElementById('introOverlay');
-        overlay.style.transition = 'opacity 0.5s ease';
-        overlay.style.opacity = '0';
-        setTimeout(() => overlay.style.display = 'none', 500);
-    }, 3000); // 3 sec
-});
-setTimeout(() => {
-    window.location.href = "main.html";
-}, 3500);
-</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
