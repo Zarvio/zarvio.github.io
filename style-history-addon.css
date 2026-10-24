@@ -1,0 +1,18 @@
+/* =====================================================================
+   History lazy-loading skeleton (style.css ke bilkul END mein paste karo)
+   ===================================================================== */
+.hc-skel { pointer-events:none; }
+.hc-skel .hc-head { cursor:default; }
+.sk, .sk-line {
+  background:linear-gradient(90deg, var(--line) 25%, color-mix(in srgb, var(--line) 45%, var(--bg)) 50%, var(--line) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.3s linear infinite;
+}
+.hc-thumb.sk { background-size:200% 100%; }
+.sk-line { display:block; height:12px; border-radius:6px; }
+.sk-line.w80 { width:80%; height:14px; }
+.sk-line.w50 { width:50%; }
+@keyframes shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+.h-sentinel { height:1px; }
+.hlist .empty .btn { margin-top:12px; }
+.lite .sk, .lite .sk-line { animation-duration:1.8s; }

@@ -1,5 +1,5 @@
 /* Viral Tags for YouTube. Console stays silent unless DEBUG is true. */
-const DEBUG = true;                      // true karoge tabhi console mein logs dikhenge
+const DEBUG = true;                     // production: false. Testing ke time true karo
 const log = {
   info: (...a) => { if (DEBUG) console.log("%c[ViralTags]", "color:#D92D20;font-weight:bold", ...a); },
   warn: (...a) => { if (DEBUG) console.warn("[ViralTags]", ...a); },
@@ -10,19 +10,40 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 firebase.initializeApp(firebaseConfig);
 
+/* ---------- Worker API (all sensitive work happens there) ---------- */
+/* opts.anon = no login needed | opts.user = use this user's token (e.g. right after sign-up) */
+async function api(action, payload, opts = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const u = opts.user || currentUser;
+  if (!opts.anon && u) headers.Authorization = "Bearer " + await u.getIdToken();
+  const res = await fetch(`${API_URL}?action=${action}`, { method: "POST", headers, body: JSON.stringify(payload || {}) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.error || "Server error " + res.status);
+    e.safe = res.status >= 400 && res.status < 500;       // 4xx messages are written for users, safe to show
+    throw e;
+  }
+  return data;
+}
+
 /* ---------- Views & Auth ---------- */
 let currentUser = null, signupMode = false;
+let signingUp = false;                                   // true while a manual sign-up is in progress (user must verify email first)
 
 function showHome() {
   if (typeof TUT !== "undefined" && (TUT.step === 4 || TUT.step === 45)) tutHide();
+  histStop();                                            // history ka scroll-loading band
   $("authView").classList.add("hidden");
+  $("setupView").classList.add("hidden");
   $("historyView").classList.add("hidden");
   $("homeView").classList.remove("hidden");
   window.scrollTo(0, 0);
 }
 function showAuth(signup) {
   setMode(signup);
+  histStop();
   $("historyView").classList.add("hidden");
+  $("setupView").classList.add("hidden");
   maybeStartLoginTutorial();
   $("homeView").classList.add("hidden");
   $("authView").classList.remove("hidden");
@@ -35,6 +56,8 @@ function setMode(signup) {
   $("switchText").textContent = signup ? "Already have an account?" : "Don't have an account?";
   $("switchLink").textContent = signup ? "Log in" : "Sign up";
   $("aPass").autocomplete = signup ? "new-password" : "current-password";
+  $("aEmail").type = signup ? "email" : "text";
+  $("aEmail").placeholder = signup ? "Email address" : "Email or username";
   $("authMsg").textContent = "";
 }
 $("switchLink").onclick = (e) => { e.preventDefault(); setMode(!signupMode); };
@@ -47,54 +70,61 @@ function authError(e) {
   log.error("Auth error:", e);
   const map = {
     "auth/invalid-email": "Enter a valid email address.",
-    "auth/user-not-found": "No account found with this email.",
-    "auth/wrong-password": "Incorrect password.",
-    "auth/invalid-credential": "Incorrect email or password.",
+    "auth/user-not-found": "Incorrect email/username or password.",      // same text as wrong password: no account guessing
+    "auth/wrong-password": "Incorrect email/username or password.",
+    "auth/invalid-credential": "Incorrect email/username or password.",
     "auth/email-already-in-use": "This email is already registered.",
-    "auth/weak-password": "Password must be at least 6 characters.",
+    "auth/weak-password": "Password must be at least 8 characters.",
+    "auth/too-many-requests": "Too many attempts. Please wait a few minutes.",
     "auth/popup-closed-by-user": "Google sign-in was cancelled.",
     "auth/unauthorized-domain": "This domain is not authorized for sign-in."
   };
-  $("authMsg").textContent = map[e.code] || "Something went wrong. Please try again.";
+  $("authMsg").textContent = map[e.code] || (e.safe ? e.message : "Something went wrong. Please try again.");
 }
 
-async function ensureProfile(user, name) {
-  try {
-    const ref = firebase.database().ref("users/" + user.uid);
-    const snap = await ref.once("value");
-    if (!snap.exists()) {
-      await ref.set({
-        username: name || user.displayName || (user.email || "user").split("@")[0],
-        photoURL: user.photoURL || "https://i.ibb.co/album/default.jpg",
-        email: user.email || ""
-      });
-    }
-  } catch (e) { log.warn("Profile:", e); }
-}
+/* ---------- Username helpers (final check + reservation happen in the Worker) ---------- */
+const cleanUser = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
+const validUser = (s) => /^[a-z0-9_]{3,20}$/.test(s);
+const PASS_MIN = 8;
 
 $("authBtn").onclick = async () => {
-  const email = $("aEmail").value.trim(), pass = $("aPass").value;
+  let email = $("aEmail").value.trim(); const pass = $("aPass").value;
   $("authMsg").textContent = "";
-  if (!email || !pass) { $("authMsg").textContent = "Enter your email and password."; return; }
+  if (!email || !pass) { $("authMsg").textContent = "Enter your email/username and password."; return; }
   $("authBtn").disabled = true;
   try {
     if (signupMode) {
-      const name = $("aName").value.trim();
-      if (!name) { $("authMsg").textContent = "Enter a username."; return; }
+      const name = cleanUser($("aName").value);
+      if (!validUser(name)) { $("authMsg").textContent = "Username: 3-20 letters, numbers or _ only."; return; }
+      if (pass.length < PASS_MIN) { $("authMsg").textContent = "Password must be at least " + PASS_MIN + " characters."; return; }
+      if (!(await api("check", { name }, { anon: true })).available) { $("authMsg").textContent = "This username is taken."; return; }
+      signingUp = true;                                    // keep the app closed until the email is verified
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
-      await ensureProfile(cred.user, name);
+      try { await api("claim", { name }, { user: cred.user }); }
+      catch (e) {                                          // username lost a race: undo the account so they can retry
+        await cred.user.delete().catch(() => {});
+        $("authMsg").textContent = e.safe ? e.message : "Something went wrong. Please try again.";
+        return;
+      }
+      await cred.user.sendEmailVerification().catch((e) => log.warn("Verify mail:", e));
+      await firebase.auth().signOut();
+      setMode(false);
+      $("authMsg").textContent = "We sent a verification link to " + email + ". Verify it, then log in.";
+      return;
+    } else if (!email.includes("@")) {                    // username login: the Worker finds the email, email is never sent to the browser
+      const r = await api("login", { username: email, password: pass }, { anon: true });
+      await firebase.auth().signInWithCustomToken(r.customToken);
     } else {
       await firebase.auth().signInWithEmailAndPassword(email, pass);
     }
   } catch (e) { authError(e); }
-  finally { $("authBtn").disabled = false; }
+  finally { signingUp = false; $("authBtn").disabled = false; }
 };
 
 $("googleBtn").onclick = async () => {
   tutOn("gclick");
   try {
-    const cred = await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    await ensureProfile(cred.user);
+    await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
   } catch (e) { authError(e); tutOn("gfail"); }
 };
 
@@ -121,8 +151,17 @@ function renderAvatar(user) {
 }
 const initial = (u) => ((u.displayName || u.email || "U")[0] || "U").toUpperCase();
 
-firebase.auth().onAuthStateChanged((user) => {
+firebase.auth().onAuthStateChanged(async (user) => {
   currentUser = user;
+  if (user && signingUp) return;                        // sign-up in progress: wait until the email is verified
+  if (user && !user.emailVerified) {                    // Google users are always verified; fake/unverified emails stop here
+    const em = user.email || "";
+    try { await user.sendEmailVerification(); } catch (_) {}
+    await firebase.auth().signOut();
+    showAuth(false);
+    $("authMsg").textContent = "Please verify your email first. We sent a link to " + em + ".";
+    return;
+  }
   document.documentElement.classList.remove("was-in");          // remove header placeholders
   try { localStorage.setItem("trendly_auth", user ? "1" : "0"); } catch (_) {}
   $("guestActions").classList.toggle("hidden", !!user);
@@ -130,24 +169,79 @@ firebase.auth().onAuthStateChanged((user) => {
   $("fbOpen").classList.toggle("hidden", !user);
   $("menuBtn").classList.toggle("hidden", !user);
   $("fbLink").classList.toggle("hidden", !user);
+  updateWnew();
   $("adminLink").classList.toggle("hidden", !(user && ADMIN_EMAILS.includes((user.email || "").toLowerCase())));
   if (user) {
-    log.info("Signed in as", user.email || user.displayName);
+    log.info("Signed in");
     renderAvatar(user);
     $("popEmail").textContent = user.email || user.displayName || "Account";
-    showHome();
-    sweepHistory(user.uid);
-    linkVisitor(user);
-    if (TUT.step === 4 || TUT.step === 45) tutHide();
-    try { localStorage.setItem("trendly_login_tut", "1"); } catch (_) {}
-    maybeStartTutorial(user);
+    if (await needsSetup(user)) { showSetup(user); return; }
+    enterApp(user);
   } else {
     log.info("Browsing as guest");
+    histStop();
     setDrawer(false); tutHide(); $("historyView").classList.add("hidden");
+    $("setupView").classList.add("hidden");
+    $("doneModal").classList.add("hidden");
     setPop(false);
     if ($("authView").classList.contains("hidden")) showHome();
   }
 });
+
+function enterApp(user) {
+  showHome();
+  sweepHistory(user.uid);
+  linkVisitor(user);
+  if (TUT.step === 4 || TUT.step === 45) tutHide();
+  try { localStorage.setItem("trendly_login_tut", "1"); } catch (_) {}
+  maybeStartTutorial(user);
+}
+
+/* ---------- Complete profile (new Google users) ---------- */
+// New = signed in with Google only (no password yet) and no saved profile
+async function needsSetup(user) {
+  const ids = user.providerData.map(p => p.providerId);
+  if (!ids.includes("google.com") || ids.includes("password")) return false;
+  try { return !(await firebase.database().ref("users/" + user.uid).once("value")).exists(); }
+  catch (e) { log.warn("needsSetup failed:", e); return false; }
+}
+function showSetup(user) {
+  tutHide();
+  $("homeView").classList.add("hidden");
+  $("authView").classList.add("hidden");
+  $("historyView").classList.add("hidden");
+  $("setupView").classList.remove("hidden");
+  $("sName").value = cleanUser(user.displayName || (user.email || "").split("@")[0]);
+  $("sPass").value = ""; $("sPass2").value = ""; $("sMsg").textContent = "";
+  window.scrollTo(0, 0);
+}
+$("sCancel").onclick = (e) => { e.preventDefault(); firebase.auth().signOut(); };
+
+$("sBtn").onclick = async () => {
+  const user = currentUser, msg = $("sMsg");
+  const name = cleanUser($("sName").value), p1 = $("sPass").value, p2 = $("sPass2").value;
+  msg.textContent = "";
+  if (!user) return;
+  if (!validUser(name)) { msg.textContent = "Username: 3-20 letters, numbers or _ only."; return; }
+  if (p1.length < PASS_MIN) { msg.textContent = "Password must be at least " + PASS_MIN + " characters."; return; }
+  if (p1 !== p2) { msg.textContent = "Passwords do not match."; return; }
+  $("sBtn").disabled = true;
+  try {
+    if (!(await api("check", { name }, { anon: true })).available) { msg.textContent = "This username is taken. Try another."; return; }
+    try { await user.linkWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, p1)); }
+    catch (e) { if (e.code !== "auth/provider-already-linked") throw e; }     // retry after a taken username is fine
+    await api("claim", { name });                         // profile is created by the Worker (no email inside)
+    $("sName").value = name;
+    $("doneModal").classList.remove("hidden");
+    $("doneGo").focus();
+  } catch (e) {
+    log.error("Setup:", e);
+    msg.textContent = e.code === "auth/weak-password" ? "Password must be at least " + PASS_MIN + " characters."
+      : e.safe ? e.message
+      : "Something went wrong. Please try again.";
+  } finally { $("sBtn").disabled = false; }
+};
+$("doneGo").onclick = () => { $("doneModal").classList.add("hidden"); enterApp(currentUser); };
 
 /* Login-required modal */
 $("modalOk").onclick = () => { $("loginModal").classList.add("hidden"); showAuth(false); };
@@ -171,7 +265,7 @@ function setFile(f) {
   hideError();
   if (!f) return;
   if (!f.type.startsWith("video")) return showError("Please choose a video file.");
-  if (f.size > MAX_SIZE) return showError(`File is too large. The maximum size is ${Math.round(MAX_SIZE / 1048576)} MB.`);
+  if (f.size > MAX_SIZE) return showError(`File is too large. The maximum size is ${Math.round(MAX_SIZE / 1048576)} MB.`);   // the Worker checks this again
   chosen = f;
   $("fname").textContent = `${f.name} (${(f.size / 1048576).toFixed(1)} MB)`;
   $("preview").innerHTML = "";
@@ -191,128 +285,33 @@ $("file").onchange = (e) => setFile(e.target.files[0]);
 ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
 $("drop").addEventListener("drop", (e) => setFile(e.dataTransfer.files[0]));
 
-/* ---------- Gemini ---------- */
-const PROMPT = `Watch this ENTIRE video from start to end, and listen to its audio and speech.
-Understand what the video is really about: topic, people, actions, objects, setting, spoken words, mood, and the niche.
-Then write YouTube SEO data in English, based only on what is actually in the video:
-- tags: 10 to 15 YouTube tags (mix of short and long-tail, no # symbol)
-- hashtags: exactly 20 hashtags, each starting with #, no spaces inside
-- keywords: 15 to 20 searchable keywords or phrases people would type in YouTube search
-- topics: 3 short search phrases (2 to 4 words each, main topic only, no # symbol) that a viewer would type into YouTube search to find this video
-- titles: exactly 5 catchy, click-worthy but honest English titles, each under 70 characters`;
-
-const SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    tags: { type: "ARRAY", items: { type: "STRING" } },
-    hashtags: { type: "ARRAY", items: { type: "STRING" } },
-    keywords: { type: "ARRAY", items: { type: "STRING" } },
-    titles: { type: "ARRAY", items: { type: "STRING" } },
-    topics: { type: "ARRAY", items: { type: "STRING" } }
-  },
-  required: ["tags", "hashtags", "keywords", "titles", "topics"]
-};
-
-const gHeaders = { "x-goog-api-key": GEMINI_API_KEY };
-
-async function geminiUpload(file) {
-  const b = "----ytb" + Math.random().toString(36).slice(2);
-  const meta = JSON.stringify({ file: { display_name: file.name.substring(0, 60) } });
-  const body = new Blob([
-    `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: ${file.type || "video/mp4"}\r\n\r\n`,
-    file,
-    `\r\n--${b}--`
-  ]);
-  const res = await fetch(`${GEMINI}/upload/v1beta/files`, {
-    method: "POST",
-    headers: { ...gHeaders, "X-Goog-Upload-Protocol": "multipart", "Content-Type": `multipart/related; boundary=${b}` },
-    body
-  });
-  if (!res.ok) throw new Error("Gemini file upload " + res.status + ": " + (await res.text()).slice(0, 200));
-  return (await res.json()).file;
-}
-
-async function geminiWaitActive(f) {
-  const deadline = Date.now() + 300000;                 // bade videos ko processing mein zyada time lagta hai
-  while (f.state === "PROCESSING") {
-    if (Date.now() > deadline) throw new Error("Gemini video processing timeout");
-    await sleep(2500);
-    const r = await fetch(`${GEMINI}/v1beta/${f.name}`, { headers: gHeaders });
-    if (!r.ok) throw new Error("Gemini file status " + r.status);
-    f = await r.json();
-  }
-  if (f.state === "FAILED") throw new Error("Gemini could not process the video");
-  return f;
-}
-
-function fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(",")[1]);
-    r.onerror = () => rej(new Error("File read failed"));
-    r.readAsDataURL(file);
-  });
-}
-
-async function generate(videoPart) {
-  const body = JSON.stringify({
-    contents: [{ parts: [videoPart, { text: PROMPT }] }],
-    generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA }
-  });
-  let lastErr = null;
-  for (const model of GEMINI_MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 150000);
-      try {
-        log.info(`Generating with ${model} (attempt ${attempt + 1})`);
-        const res = await fetch(`${GEMINI}/v1beta/models/${model}:generateContent`, {
-          method: "POST", signal: ctrl.signal,
-          headers: { ...gHeaders, "Content-Type": "application/json" }, body
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
-          if (!text) throw new Error("Gemini returned an empty response (possibly blocked by safety filters)");
-          return JSON.parse(text.replace(/```json|```/g, "").trim());
-        }
-        lastErr = new Error(`Gemini ${model} ${res.status}: ${(await res.text()).slice(0, 200)}`);
-        log.warn(lastErr.message);
-        if (res.status === 404) break;
-        if (res.status === 400 || res.status === 403) throw lastErr;
-        await sleep(1500);
-      } catch (e) {
-        if (e === lastErr && /\b(400|403)\b/.test(e.message)) throw e;
-        lastErr = e;
-      } finally { clearTimeout(timer); }
-    }
-  }
-  throw lastErr || new Error("All Gemini models failed");
-}
+/* ---------- Gemini (via Cloudflare Worker) ---------- */
+const CHUNK = 16 * 1024 * 1024;   // 8 MB ka multiple hona zaroori hai (Worker bhi yahi maanta hai)
 
 async function analyzeWithGemini(file) {
-  let gFile = null;
-  try {
-    let part;
-    try {
-      log.info("Uploading video to Gemini...");
-      gFile = await geminiUpload(file);
-      log.info("Waiting for Gemini to process the video...");
-      gFile = await geminiWaitActive(gFile);
-      part = { file_data: { mime_type: gFile.mimeType, file_uri: gFile.uri } };
-    } catch (e) {
-      if (file.size > 15 * 1024 * 1024) throw e;
-      log.warn("Files API failed, falling back to inline upload:", e);
-      part = { inline_data: { mime_type: file.type, data: await fileToBase64(file) } };
-    }
-    log.info("Gemini is analyzing the video...");
-    return await generate(part);
-  } finally {
-    // The video is removed from Gemini as soon as analysis ends
-    if (gFile?.name) fetch(`${GEMINI}/v1beta/${gFile.name}`, { method: "DELETE", headers: gHeaders }).catch(() => {});
-  }
-}
+  log.info("Requesting upload...");
+  const { uploadId } = await api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4" });
 
+  log.info("Uploading video in chunks...");
+  let fileName = null;
+  for (let offset = 0; offset < file.size; offset += CHUNK) {
+    const end = Math.min(offset + CHUNK, file.size);
+    const last = end >= file.size;
+    const token = await currentUser.getIdToken();
+    const res = await fetch(`${API_URL}?action=chunk&id=${encodeURIComponent(uploadId)}&offset=${offset}`, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token, "Content-Type": "application/octet-stream" },
+      body: file.slice(offset, end)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(data.error || "Upload failed " + res.status); e.safe = res.status >= 400 && res.status < 500; throw e; }
+    if (last) fileName = data.file;
+    log.info(`Uploaded ${Math.round(end / file.size * 100)}%`);
+  }
+
+  log.info("Analyzing...");
+  return await api("analyze", { file: fileName });
+}
 /* ---------- Results ---------- */
 const clean = (arr, n) => [...new Set((arr || []).map(s => String(s).trim()).filter(Boolean))].slice(0, n);
 
@@ -325,78 +324,6 @@ function normalize(d) {
   };
 }
 
-/* ---------- YouTube search suggestions (free, no API key) ---------- */
-/* Real searches people type on YouTube. If anything fails we silently fall back to Gemini-only results. */
-const YT_SUGGEST = "https://suggestqueries.google.com/complete/search";
-let jsonpSeq = 0;
-
-const uniq = (arr) => { const seen = new Set(); return arr.filter(x => { const k = String(x).toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; }); };
-const roundRobin = (...lists) => {                       // a1, b1, a2, b2 ... so every source gets a fair share
-  const out = [], n = Math.max(0, ...lists.map(l => l.length));
-  for (let i = 0; i < n; i++) for (const l of lists) if (i < l.length) out.push(l[i]);
-  return out;
-};
-
-function parseSuggest(data) {                            // handles both ["q",["a","b"]] and ["q",[["a",0],["b",0]]]
-  const list = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
-  return list.map(x => String(Array.isArray(x) ? x[0] : x).trim()).filter(Boolean);
-}
-const ytUrl = (q, client, extra = "") =>
-  `${YT_SUGGEST}?client=${client}&ds=yt&hl=${YT_LANG}&gl=${YT_REGION}&q=${encodeURIComponent(q)}${extra}`;
-
-/* YouTube's suggest endpoint sends no CORS header, so fetch() is blocked in browsers.
-   A <script> tag (JSONP) is not subject to CORS, so that is the only method used. */
-function ytSuggestOne(q, ms = 4000) {
-  return new Promise((resolve) => {
-    const cb = "__ytsug" + (++jsonpSeq) + "_" + Date.now().toString(36);
-    const s = document.createElement("script");
-    let timer = null, finished = false;
-    const done = (v) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer); s.remove();
-      window[cb] = () => {};                              // response late aaye to bhi "not defined" error nahi aayega
-      setTimeout(() => { delete window[cb]; }, 60000);
-      resolve(v);
-    };
-    timer = setTimeout(() => done([]), ms);
-    window[cb] = (data) => done(parseSuggest(data));
-    s.onerror = () => done([]);
-    s.src = ytUrl(q, "youtube", "&jsonp=" + cb);
-    document.head.appendChild(s);
-  });
-}
-
-async function ytSuggestions(d) {                        // Gemini topics (+ first 2 tags) -> real YouTube searches
-  const t0 = Date.now();
-  const seeds = uniq([...(d.topics || []), ...(d.tags || []).slice(0, 2)]
-    .map(s => String(s).replace(/^#/, "").trim()).filter(Boolean)).slice(0, 4);
-  if (!seeds.length) return [];
-  try {
-    const lists = await Promise.all(seeds.map(s => ytSuggestOne(s).catch(() => [])));
-    const out = uniq(roundRobin(...lists).filter(s => s.length <= 60));
-    log.info(`YouTube suggestions: ${out.length} found for`, seeds, `in ${Date.now() - t0} ms`);
-    return out;
-  } catch (e) { log.warn("YouTube suggestions skipped:", e); return []; }
-}
-
-/* Mix Gemini + YouTube. Tags stay inside YouTube's 500 character limit. */
-function mergeYT(d, yt) {
-  const g = normalize(d);
-  const tagsYT = yt.filter(s => s.length <= 35 && !s.includes(","));
-  const hashYT = uniq(yt.map(s => "#" + s.replace(/[^\p{L}\p{M}\p{N}_]+/gu, "")).filter(h => h.length >= 4 && h.length <= 26));
-
-  const tags = []; let len = 0;
-  for (const t of uniq(roundRobin(g.tags, tagsYT))) {
-    const add = t.length + (tags.length ? 2 : 0);
-    if (tags.length >= 20 || len + add > 500) continue;
-    tags.push(t); len += add;
-  }
-  const hashtags = uniq(roundRobin(g.hashtags, hashYT)).slice(0, 20);
-  const keywords = uniq(roundRobin(yt, g.keywords)).slice(0, 20);
-
-  return { tags, hashtags, keywords, titles: g.titles };
-}
 
 /* ---------- Toast, SEO score, Copy all ---------- */
 let toastT = null, lastRes = null;
@@ -518,29 +445,28 @@ $("go").onclick = async () => {
   $("results").classList.add("hidden");
   startSkeleton();
 
-  const file = chosen, user = currentUser, t0 = Date.now();
+  const file = chosen;
 
+  // Worker does everything: upload check, analysis, history save and analytics log
   const ai = await analyzeWithGemini(file)
-    .then(d => { log.info("Analysis complete:", d); return { data: d }; })
-    .catch(e => { log.error(e); return { error: e.message }; });
-
-  logAnalysis(user, file, !ai.error, Date.now() - t0);
-
-  // Mix Gemini's result with real YouTube searches (max 5 s wait, never blocks the result)
-  let data = null;
-  if (!ai.error) data = mergeYT(ai.data, await Promise.race([ytSuggestions(ai.data), sleep(5000).then(() => [])]));
+        .then(d => { log.info("Analysis complete. Gemini tags:", d.stats && d.stats.gemini, "| YouTube suggestions found:", d.stats && d.stats.yt, "| used in final tags:", d.stats && d.stats.ytUsed); return { data: d }; })
+    .catch(e => { log.error(e); return { error: e.message, safe: e.safe }; });
 
   const thumb = ai.error ? null : await Promise.race([thumbPromise, sleep(2500).then(() => null)]);
   stopSkeleton();
-  if (ai.error) { showError("We couldn't analyze this video. Please try again."); tutOn("failed"); }
+  if (ai.error) { showError(ai.safe ? ai.error : "We couldn't analyze this video. Please try again."); tutOn("failed"); }
   else {
-    const res = showResults(data);
-    saveHistory(user, file, res, thumb).catch(e => log.warn("History save failed:", e));
+    showResults(ai.data);
+    if (ai.data.hid && thumb) sendThumb(ai.data.hid, thumb).catch(e => log.warn("Thumb save failed:", e));
   }
 
   running = false;
   setUI(ai.error ? "ready" : "done");
 };
+
+async function sendThumb(hid, blob) {                   // preview image for History; Worker validates it
+  await api("thumb", { hid, thumbData: await blobToDataUrl(blob) });
+}
 
 
 /* ---------- Polish: scroll reveal, footer year, loading state ---------- */
@@ -631,7 +557,7 @@ function stopSkeleton() {
 }
 
 
-/* ---------- Feedback: users can share problems ---------- */
+/* ---------- Feedback: users can share problems (saved + rate limited by the Worker) ---------- */
 let fbType = "problem";
 function openFb() {
   if (!currentUser) return;
@@ -660,25 +586,16 @@ $("fbSend").onclick = async () => {
   if ($("fbHp").value) return;                       // bot trap
   if (msg.length < 10) { $("fbErr").textContent = "Please write at least 10 characters."; return; }
   if (!currentUser) return;
-  let last = 0; try { last = +localStorage.getItem("fbLast") || 0; } catch (_) {}
-  if (Date.now() - last < 30000) { $("fbErr").textContent = "Please wait a few seconds before sending again."; return; }
 
   $("fbSend").disabled = true;
   try {
-    await firebase.database().ref("feedback").push({
-      type: fbType, message: msg, email: currentUser.email || "",
-      uid: currentUser.uid,
-      name: currentUser.displayName || "",
-      page: location.href, userAgent: navigator.userAgent.slice(0, 200),
-      createdAt: firebase.database.ServerValue.TIMESTAMP
-    });
-    try { localStorage.setItem("fbLast", String(Date.now())); } catch (_) {}
+    await api("feedback", { type: fbType, message: msg, page: location.href });
     log.info("Feedback sent:", fbType);
     $("fbMsg").value = ""; $("fbCount").textContent = "0";
     $("fbBody").classList.add("hidden"); $("fbDone").classList.remove("hidden");
   } catch (e) {
     log.error("Feedback failed:", e);
-    $("fbErr").textContent = "Couldn't send your message. Please try again.";
+    $("fbErr").textContent = e.safe ? e.message : "Couldn't send your message. Please try again.";
   } finally { $("fbSend").disabled = false; }
 };
 
@@ -697,31 +614,39 @@ $("navHistory").onclick = () => { setDrawer(false); showHistory(); };
 $("hBack").onclick = showHome;
 
 /* ---------- History (kept 7 days, then deleted from Firebase) ---------- */
+/* The Worker writes history items. The browser can only read and delete the user's own items. */
 const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
-
-async function saveHistory(user, file, res, thumb) {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const thumbData = thumb ? await blobToDataUrl(thumb) : "";   // small JPEG stored inline in Firebase
-  const now = Date.now();
-  await firebase.database().ref(`history/${user.uid}/${id}`).set({
-    createdAt: now, expiresAt: now + HISTORY_MS, fileName: file.name.slice(0, 80),
-    thumbData, ...res
-  });
-  log.info("Saved to history (deleted automatically after 7 days):", id);
-}
 
 async function removeHistoryItem(uid, id) {
   await firebase.database().ref(`history/${uid}/${id}`).remove();
 }
 
+/* Expired items delete karne ke liye sirf expiresAt padhte hain (shallow-ish: poora data nahi, query se). */
 async function sweepHistory(uid) {
   try {
-    const snap = await firebase.database().ref("history/" + uid).once("value");
-    const now = Date.now();
+    const snap = await firebase.database().ref("history/" + uid)
+      .orderByChild("expiresAt").endAt(Date.now()).once("value");
     const jobs = [];
-    snap.forEach(c => { const v = c.val() || {}; if ((v.expiresAt || 0) <= now) jobs.push(removeHistoryItem(uid, c.key)); });
+    snap.forEach(c => { jobs.push(removeHistoryItem(uid, c.key)); });
     if (jobs.length) { await Promise.all(jobs); log.info("Deleted expired history items:", jobs.length); }
   } catch (e) { log.warn("History sweep:", e); }
+}
+
+/* ---- Lazy loading: pehle 4, phir scroll karne par agle 4 (skeleton ke saath) ---- */
+const HIST_PAGE = 4;
+const H = { token: 0, loading: false, more: false, cursor: null, obs: null, sentinel: null };
+
+function histStop() {                                   // history se bahar jaate hi sab band
+  H.token++; H.loading = false; H.more = false; H.cursor = null;
+  if (H.obs) { H.obs.disconnect(); H.obs = null; }
+}
+
+function histSkeleton() {
+  const el = document.createElement("article");
+  el.className = "hc hc-skel";
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = '<div class="hc-head"><span class="hc-thumb sk"></span><span class="hc-meta"><i class="sk-line w80"></i><i class="sk-line w50"></i></span></div>';
+  return el;
 }
 
 function showHistory() {
@@ -732,39 +657,96 @@ function showHistory() {
   loadHistory();
 }
 
-async function loadHistory() {
+/* Sirf HIST_PAGE+1 items laata hai (extra wala agle page ka cursor banta hai) */
+async function histFetch(uid, cursor) {
+  let q = firebase.database().ref("history/" + uid).orderByChild("createdAt");
+  if (cursor) q = q.endAt(cursor.createdAt, cursor.id);
+  const snap = await q.limitToLast(HIST_PAGE + 1).once("value");
+  const items = [];
+  snap.forEach(c => { items.push({ id: c.key, ...c.val() }); });
+  items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (a.id < b.id ? 1 : -1));
+  const extra = items.length > HIST_PAGE ? items[HIST_PAGE] : null;
+  return { page: items.slice(0, HIST_PAGE), extra };
+}
+
+async function loadHistory() {                          // fresh start
+  histStop();
   const list = $("hList");
-  list.innerHTML = '<div class="empty">Loading...</div>';
+  list.innerHTML = "";
+  H.sentinel = document.createElement("div");
+  H.sentinel.className = "h-sentinel";
+  list.appendChild(H.sentinel);
+  H.more = true;
+  await histLoadMore(true);
+}
+
+async function histLoadMore(first) {
+  if (H.loading || !H.more || !currentUser) return;
+  H.loading = true;
+  const token = H.token, list = $("hList");
+  if (H.obs) H.obs.unobserve(H.sentinel);
+
+  const skels = Array.from({ length: HIST_PAGE }, histSkeleton);
+  skels.forEach(s => list.insertBefore(s, H.sentinel));
+
   try {
-    const snap = await firebase.database().ref("history/" + currentUser.uid).once("value");
-    const now = Date.now(), items = [];
-    snap.forEach(c => { const v = c.val(); if (v && (v.expiresAt || 0) > now) items.push({ id: c.key, ...v }); });
-    items.sort((a, b) => b.createdAt - a.createdAt);
-    list.innerHTML = "";
-    if (!items.length) { list.innerHTML = '<div class="empty">No history yet. Analyze a video and it will appear here.</div>'; return; }
-    items.forEach((it, i) => { const c = histCard(it, now); c.style.animationDelay = Math.min(i, 8) * 40 + "ms"; list.appendChild(c); });
+    const { page, extra } = await histFetch(currentUser.uid, H.cursor);
+    if (token !== H.token) return;                      // user history se chala gaya / reload hua
+    skels.forEach(s => s.remove());
+    const now = Date.now();
+    const shown = page.filter(it => (it.expiresAt || 0) > now);
+    shown.forEach((it, i) => {
+      const c = histCard(it, now);
+      c.style.animationDelay = i * 40 + "ms";
+      list.insertBefore(c, H.sentinel);
+    });
+    H.cursor = extra ? { createdAt: extra.createdAt, id: extra.id } : null;
+    H.more = !!extra;
+    if (first && !shown.length && !H.more) {
+      list.insertBefore(histMsg("No history yet. Analyze a video and it will appear here."), H.sentinel);
+    }
+    log.info(`History: ${shown.length} loaded, more =`, H.more);
   } catch (e) {
+    if (token !== H.token) return;
     log.error("History load failed:", e);
-    list.innerHTML = '<div class="empty">Couldn\'t load your history. Please try again.</div>';
+    skels.forEach(s => s.remove());
+    const m = histMsg(first ? "Couldn't load your history." : "Couldn't load more.");
+    const rb = document.createElement("button");
+    rb.className = "btn sm ghost"; rb.textContent = "Try again";
+    rb.onclick = () => { m.remove(); H.more = true; histLoadMore(first); };
+    m.appendChild(rb);
+    list.insertBefore(m, H.sentinel);
+    H.more = false;                                     // retry button se hi dobara chalega
+  } finally {
+    if (token === H.token) {
+      H.loading = false;
+      histWatch();
+    }
   }
 }
 
-function histCard(it, now) {
-  const art = document.createElement("article"); art.className = "hc";
-  const head = document.createElement("button"); head.className = "hc-head";
-  const th = document.createElement("span"); th.className = "hc-thumb";
-  const src = it.thumbData || it.thumbUrl;
-  if (src) th.style.backgroundImage = "url(" + JSON.stringify(src) + ")";
-  const meta = document.createElement("span"); meta.className = "hc-meta";
-  const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
-  const b = document.createElement("b"); b.textContent = (it.titles && it.titles[0]) || it.fileName || "Video";
-  const sp = document.createElement("span");
-  sp.textContent = new Date(it.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + " · Deletes in " + days + (days === 1 ? " day" : " days");
-  meta.append(b, sp);
-  const chev = document.createElement("i"); chev.className = "chev";
-  head.append(th, meta, chev);
+function histMsg(text) {
+  const d = document.createElement("div");
+  d.className = "empty";
+  d.append(text);
+  return d;
+}
 
-  const body = document.createElement("div"); body.className = "hc-body hidden";
+/* Sentinel dikhte hi agle 4 load (200px pehle se, taaki scroll rukta na lage) */
+function histWatch() {
+  if (!H.more || !H.sentinel) return;
+  if (!("IntersectionObserver" in window)) { histLoadMore(false); return; }
+  if (!H.obs) {
+    H.obs = new IntersectionObserver((es) => {
+      if (es.some(e => e.isIntersecting)) histLoadMore(false);
+    }, { rootMargin: "200px 0px" });
+  }
+  H.obs.unobserve(H.sentinel);                          // re-observe: screen badi ho to bhi check dobara chale
+  H.obs.observe(H.sentinel);
+}
+
+/* Card ka andar ka heavy part (textareas, chips) sirf pehli baar kholne par banta hai */
+function buildHistBody(it, body, art) {
   [["Tags", (it.tags || []).join(", ")], ["Hashtags", (it.hashtags || []).join(" ")],
    ["Keywords", (it.keywords || []).join(", ")], ["Titles", (it.titles || []).join("\n")]].forEach(([label, text]) => {
     const box = document.createElement("div"); box.className = "box";
@@ -792,8 +774,30 @@ function histCard(it, now) {
     catch (e) { log.error(e); }
   };
   body.appendChild(del);
+}
 
-  head.onclick = () => { const open = body.classList.toggle("hidden") === false; art.classList.toggle("open", open); };
+function histCard(it, now) {
+  const art = document.createElement("article"); art.className = "hc";
+  const head = document.createElement("button"); head.className = "hc-head";
+  const th = document.createElement("span"); th.className = "hc-thumb";
+  const src = it.thumbData || it.thumbUrl;
+  if (src) th.style.backgroundImage = "url(" + JSON.stringify(src) + ")";
+  const meta = document.createElement("span"); meta.className = "hc-meta";
+  const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
+  const b = document.createElement("b"); b.textContent = (it.titles && it.titles[0]) || it.fileName || "Video";
+  const sp = document.createElement("span");
+  sp.textContent = new Date(it.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + " · Deletes in " + days + (days === 1 ? " day" : " days");
+  meta.append(b, sp);
+  const chev = document.createElement("i"); chev.className = "chev";
+  head.append(th, meta, chev);
+
+  const body = document.createElement("div"); body.className = "hc-body hidden";
+  let built = false;
+  head.onclick = () => {
+    if (!built) { buildHistBody(it, body, art); built = true; }
+    const open = body.classList.toggle("hidden") === false;
+    art.classList.toggle("open", open);
+  };
   art.append(head, body);
   return art;
 }
@@ -883,9 +887,8 @@ function tutOn(evt) {
 window.addEventListener("focus", () => setTimeout(() => { if (TUT.step === 1 && !chosen) tutGo(1, 600); }, 400)); // dialog cancelled
 
 
-/* ---------- Analytics for the admin panel (visits incl. guests, and who analyzed what) ---------- */
+/* ---------- Analytics: browser only sends a visit ping; the Worker writes everything ---------- */
 const getVid = () => { try { return localStorage.getItem("trendly_vid"); } catch (_) { return null; } };
-const dayKey = () => new Date().toLocaleDateString("en-CA");           // YYYY-MM-DD
 
 async function trackVisit() {
   try {
@@ -893,29 +896,20 @@ async function trackVisit() {
     const vid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     try { localStorage.setItem("trendly_vid", vid); } catch (_) {}
     if (getVid() !== vid) return;                           // storage blocked: can't dedupe, so don't count
-    const db = firebase.database(), TS = firebase.database.ServerValue.TIMESTAMP;
-    const device = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop";
-    await db.ref("analytics/visitors/" + vid).set({ firstSeen: TS, device });
-    db.ref("analytics/days/" + dayKey()).update({ new: firebase.database.ServerValue.increment(1) });
+    await api("visit", { vid }, { anon: true });
     log.info("New visitor recorded");
   } catch (e) { log.warn("Visit tracking skipped:", e); }
 }
+const visitDone = trackVisit();                             // safe to call twice: the vid check above stops a second count
 
 function linkVisitor(user) {                                              // attach the account to this visitor
   try {
-    const vid = getVid(), k = "trendly_linked_" + user.uid;
-    if (!vid || sessionStorage.getItem(k)) return;
+    const k = "trendly_linked_" + user.uid;
+    if (sessionStorage.getItem(k)) return;
     sessionStorage.setItem(k, "1");
-    firebase.database().ref("analytics/visitors/" + vid).update({ uid: user.uid, email: user.email || "", name: user.displayName || "" });
+    visitDone.then(() => { const vid = getVid(); return vid && api("link", { vid }, { user }); })
+      .catch(e => log.warn("Link visitor:", e));
   } catch (e) { log.warn("Link visitor:", e); }
-}
-
-function logAnalysis(user, file, ok, ms) {
-  firebase.database().ref("analytics/analyses").push({
-    uid: user.uid, email: user.email || "", name: user.displayName || "",
-    fileName: file.name.slice(0, 80), sizeMB: +(file.size / 1048576).toFixed(1),
-    status: ok ? "ok" : "failed", ms, createdAt: firebase.database.ServerValue.TIMESTAMP
-  }).catch(e => log.warn("Analysis log failed:", e));
 }
 
 /* ---------- Dark / light toggle ---------- */
@@ -933,9 +927,23 @@ function applyTheme(t, save) {
 themeBtn.onclick = () => applyTheme(curTheme() === "dark" ? "light" : "dark", true);
 applyTheme(curTheme(), false);
 
-/* ---------- "What's new" pill (ek baar dikhta hai) ---------- */
-const WN_KEY = "trendly_whatsnew_v2";
-try { if (!localStorage.getItem(WN_KEY)) $("wnew").classList.remove("hidden"); } catch (_) {}
+/* ---------- "What's new" pill (sirf logged-in users, ek baar) ---------- */
+const WN_KEY = "trendly_whatsnew_v3";
+function updateWnew() {
+  let seen = false;
+  try { seen = !!localStorage.getItem(WN_KEY); } catch (_) {}
+  $("wnew").classList.toggle("hidden", !currentUser || seen);
+}
 $("wnew").onclick = () => { $("wnew").classList.add("hidden"); try { localStorage.setItem(WN_KEY, "1"); } catch (_) {} };
-
-trackVisit();
+updateWnew();
+/* ---------- Admin notice: Firebase "notice" true ho to poori site block ---------- */
+firebase.database().ref("notice").on("value", (s) => {
+  const n = s.val() || {};
+  const on = n.active === true;
+  $("noticeTitle").textContent = n.title || "";
+  $("noticeBody").textContent = n.message || "";
+  $("noticeModal").classList.toggle("hidden", !on);
+  document.body.style.overflow = on ? "hidden" : "";
+  ["homeView", "authView", "historyView", "setupView"].forEach(id => { $(id).inert = on; }); // keyboard se bhi kuch na ho
+  if (on) tutHide();
+}, (e) => log.warn("Notice listener:", e));
