@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="hook.css">
 </head>
 <body>
 
@@ -61,14 +62,21 @@
       <i class="wn-x" aria-hidden="true">&times;</i>
     </button>
 
-    <h1 class="headline">What video are we optimizing today?</h1>
-    <p class="sub">Upload a video and get tags, hashtags, keywords and titles for YouTube.</p>
-    <div class="chips" aria-hidden="true"><span>Tags</span><span>Hashtags</span><span>Other</span></div>
+    <h1 class="headline" id="heroTitle">What video are we optimizing today?</h1>
+    <p class="sub" id="heroSub">Get tags, hashtags, keywords and titles for YouTube.</p>
+
+    <!-- Mode switch: Suggestion (hook check) <-> Tags & Hashtags. The label swaps when you click it. -->
+    <div class="modebar">
+      <button class="modebtn" id="modeBtn" type="button" aria-label="Switch mode">
+        <span class="mode-ic" id="modeIc" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
+        <span id="modeLbl">Suggestion</span>
+      </button>
+    </div>
 
     <div class="drop" id="drop">
       <input type="file" id="file" accept="video/*" class="hidden">
       <div class="drop-empty" id="dropEmpty">
-        <p>Drag and drop a video here (max <span class="maxmb">300</span> MB)</p>
+        <p id="dropText">Drag and drop a video here (max <span class="maxmb">300</span> MB)</p>
         <button class="btn dark" id="pick">Choose video</button>
       </div>
       <div class="fname" id="fname"></div>
@@ -97,6 +105,7 @@
       </div>
     </div>
 
+    <!-- ===== Results: tags mode ===== -->
     <div class="results hidden" id="results">
       <div class="box score">
         <div class="ring">
@@ -128,6 +137,48 @@
         <ul class="titles" id="titles"></ul>
       </div>
     </div>
+
+    <!-- ===== Results: suggestion mode (hook score + stronger hook lines) ===== -->
+    <div class="results hidden" id="hookResults">
+      <div class="box score">
+        <div class="ring">
+          <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="rt" cx="22" cy="22" r="19"/><circle class="rf" id="hRingFill" cx="22" cy="22" r="19"/></svg>
+          <b id="hScoreNum">0</b>
+        </div>
+        <div class="score-txt">
+          <h3>Hook score</h3>
+          <p id="hScoreMsg"></p>
+          <p class="hverdict" id="hVerdict"></p>
+        </div>
+      </div>
+
+      <div class="box hnote hidden" id="hNote" role="status"></div>
+
+      <div class="box">
+        <header><h3>Your current hook<small id="hLang"></small></h3></header>
+        <p class="hcur" id="hCurrent"></p>
+        <div class="plists">
+          <div><div class="plist-h">What works</div><ul class="plist good" id="hGood"></ul></div>
+          <div><div class="plist-h">What to fix</div><ul class="plist bad" id="hBad"></ul></div>
+        </div>
+      </div>
+
+      <div class="box hidden" id="hSuggestBox">
+        <header><h3>Stronger hook lines<small>tap Copy to use one</small></h3></header>
+        <ul class="titles hooks" id="hHooks"></ul>
+      </div>
+
+      <div class="box hidden" id="hTipsBox">
+        <header><h3>Quick tips</h3></header>
+        <ul class="tips" id="hTips"></ul>
+      </div>
+
+      <div class="box hidden" id="hTrendBox">
+        <header><h3>Trending searches on your topic<small>YouTube, Google, DuckDuckGo</small></h3></header>
+        <div class="tagchips trend" id="hTrend"></div>
+        <p class="chip-hint">Tap a phrase to copy it.</p>
+      </div>
+    </div>
   </main>
 
   <section class="sec" id="how">
@@ -147,6 +198,7 @@
       <article class="card rv"><h3>Search keywords</h3><p>Phrases people actually type into YouTube search.</p></article>
       <article class="card rv"><h3>5 click-worthy titles</h3><p>Honest, catchy titles under 70 characters, with a length check on each.</p></article>
       <article class="card rv"><h3>SEO score</h3><p>See an instant score for your results and copy everything in one tap.</p></article>
+      <article class="card rv"><h3>Hook check</h3><p>Use Suggestion to score your video's hook and get stronger opening lines.</p></article>
       <article class="card rv"><h3>Sees and hears</h3><p>Analysis uses both what appears on screen and what is said.</p></article>
       <article class="card rv"><h3>Private by design</h3><p>Your video is deleted automatically as soon as the analysis finishes.</p></article>
     </div>
@@ -154,8 +206,9 @@
 
   <section class="sec narrow" id="faq">
     <h2 class="rv">Frequently asked questions</h2>
-    <details class="rv"><summary>Is Trenndly free to use?</summary><p>Yes. Create an account and start analyzing videos.</p></details>
+    <details class="rv"><summary>Is Trenndly free to use?</summary><p>Yes. Every account gets free coins each day. Analyzing a video costs 10 coins and a hook suggestion costs 5 coins.</p></details>
     <details class="rv"><summary>What happens to my video?</summary><p>It is used only for analysis and is deleted automatically as soon as the analysis finishes.</p></details>
+    <details class="rv"><summary>What does Suggestion do?</summary><p>It scores your video's hook and, if the score is below 90, writes stronger opening lines in your video's language.</p></details>
     <details class="rv"><summary>What video size is supported?</summary><p>Videos up to <span class="maxmb">300</span> MB in any common format.</p></details>
     <details class="rv"><summary>Why do I need to log in?</summary><p>An account keeps the service secure and prevents misuse.</p></details>
   </section>
@@ -255,6 +308,26 @@
     <span class="brand"><img class="logo" src="logo.png" alt="">Trenndly</span>
     <button class="menu-btn" id="drawerClose" aria-label="Close menu">&times;</button>
   </div>
+
+  <!-- Coins: sits at the top of the menu, a little apart from the links -->
+  <div class="coins" id="coinsCard" aria-live="polite">
+    <div class="coins-top">
+      <span class="coin-ic" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.2c.4-1 1.4-1.6 2.5-1.6 1.5 0 2.5.8 2.5 1.9 0 2.6-5 1.4-5 4 0 1.1 1 1.9 2.5 1.9 1.1 0 2.1-.6 2.5-1.6" stroke-width="1.6"/></svg>
+      </span>
+      <div class="coin-txt">
+        <div><b id="coinNum">--</b><span id="coinMax"></span></div>
+        <small>coins left today</small>
+      </div>
+    </div>
+    <div class="coin-costs">
+      <span>Analyze video <b id="costTags">10</b></span>
+      <span>Suggestion <b id="costHook">5</b></span>
+      <span>Refills every day</span>
+    </div>
+  </div>
+  <div class="drawer-sep"></div>
+
   <nav class="drawer-nav">
     <button class="nav-item" id="navHistory">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>

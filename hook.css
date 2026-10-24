@@ -1,0 +1,73 @@
+/* =====================================================================
+   hook.css: Suggestion mode, coins card, hook results.
+   Loaded after style.css and chat.css. Uses the same colour variables.
+   ===================================================================== */
+
+/* ---------- Mode button (replaces the Tags / Hashtags / Other chips) ---------- */
+.modebar { display:flex; justify-content:center; margin:-4px 0 26px; animation:rise .7s .16s var(--ease) both; }
+.modebtn {
+  display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:var(--r-pill);
+  border:1px solid color-mix(in srgb, var(--green) 45%, var(--line));
+  background:color-mix(in srgb, var(--green) 9%, var(--bg)); color:var(--ink);
+  font-weight:500; font-size:14.5px; cursor:pointer; box-shadow:var(--shadow-sm);
+  transition:transform .18s var(--ease), background-color .2s, border-color .2s;
+}
+.modebtn .mode-ic { color:var(--green-ink); font-weight:700; font-size:16px; line-height:1; }
+.modebtn:active { transform:scale(.96); }
+@media (hover:hover) { .modebtn:hover:not(:disabled) { transform:translateY(-1px); background:color-mix(in srgb, var(--green) 16%, var(--bg)); } }
+.modebtn:disabled { opacity:.45; cursor:not-allowed; }
+.modebtn.is-hook { border-color:var(--line); background:var(--surface); }
+
+/* ---------- Coins card at the top of the side menu ---------- */
+.coins {
+  margin:2px 4px 14px; padding:14px; border-radius:var(--r-md);
+  border:1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+  background:linear-gradient(135deg, color-mix(in srgb, var(--green) 16%, var(--surface)), var(--surface));
+}
+.coins-top { display:flex; align-items:center; gap:12px; }
+.coin-ic {
+  width:44px; height:44px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:#F5B301; color:#6B4700; box-shadow:inset 0 0 0 3px rgba(255,255,255,.4);
+}
+.coin-txt b { font-size:30px; font-weight:600; letter-spacing:-.02em; line-height:1; }
+.coin-txt span { color:var(--muted); font-size:14px; margin-left:4px; }
+.coin-txt small { display:block; color:var(--muted); font-size:12.5px; margin-top:3px; }
+.coin-costs { display:grid; gap:5px; margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); font-size:12.5px; color:var(--muted); }
+.coin-costs span { display:flex; justify-content:space-between; gap:10px; }
+.coin-costs b { color:var(--ink); font-weight:600; }
+.drawer-sep { height:1px; background:var(--line); margin:0 4px 10px; }
+
+/* ---------- Hook results ---------- */
+.hverdict { margin-top:6px !important; color:var(--ink) !important; }
+.hnote {
+  padding:13px 16px; font-size:14px;
+  background:color-mix(in srgb, var(--warn) 12%, var(--bg));
+  color:var(--warn); border-color:color-mix(in srgb, var(--warn) 30%, var(--line));
+}
+.hcur { margin:0; padding:14px 16px; font-size:15px; white-space:pre-wrap; word-break:break-word; }
+.box small.hlang, #hLang { font-weight:400; }
+.plists { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line); }
+.plists > div + div { border-left:1px solid var(--line); }
+.plist-h { padding:12px 16px 0; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.plist { list-style:none; margin:0; padding:10px 16px 14px; display:grid; gap:8px; font-size:14px; }
+.plist li { position:relative; padding-left:22px; }
+.plist.good li::before { content:"\2713"; position:absolute; left:0; color:var(--green-ink); font-weight:700; }
+.plist.bad li::before { content:"!"; position:absolute; left:5px; color:var(--danger); font-weight:700; }
+.plist:empty::after { content:"Nothing to show."; color:var(--muted); }
+.hooks .t { display:block; }
+.hooks .t small.roman { display:block; margin:3px 0 0; color:var(--muted); font-size:13px; font-weight:400; }
+.hooks .n { text-transform:uppercase; letter-spacing:.04em; font-size:11px; }
+.tips { margin:0; padding:12px 16px 14px 36px; display:grid; gap:7px; font-size:14px; }
+.tagchips.trend { padding-top:14px; }
+
+@media (max-width:600px) {
+  .plists { grid-template-columns:1fr; }
+  .plists > div + div { border-left:0; border-top:1px solid var(--line); }
+  .modebtn { font-size:14px; padding:9px 16px; }
+}
+.modebtn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.modebtn .mode-ic { display: inline-block; }
+#heroSub { text-wrap: balance; }
+#coinNum { transition: color .4s ease; }
+#coinNum[data-set] { color: hsl(var(--coin-h) 75% 38%); }
+html[data-theme="dark"] #coinNum[data-set] { color: hsl(var(--coin-h) 80% 58%); }

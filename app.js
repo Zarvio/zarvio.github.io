@@ -1,5 +1,5 @@
 /* Viral Tags for YouTube. Console stays silent unless DEBUG is true. */
-const DEBUG = true;                     // production: false. Testing ke time true karo
+const DEBUG = false;                     // production: false. Testing ke time true karo
 const log = {
   info: (...a) => { if (DEBUG) console.log("%c[ViralTags]", "color:#D92D20;font-weight:bold", ...a); },
   warn: (...a) => { if (DEBUG) console.warn("[ViralTags]", ...a); },
@@ -180,6 +180,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
   } else {
     log.info("Browsing as guest");
     histStop();
+    resetCoins();
     setDrawer(false); tutHide(); $("historyView").classList.add("hidden");
     $("setupView").classList.add("hidden");
     $("doneModal").classList.add("hidden");
@@ -191,6 +192,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
 function enterApp(user) {
   showHome();
   sweepHistory(user.uid);
+  refreshCoins();
   linkVisitor(user);
   if (TUT.step === 4 || TUT.step === 45) tutHide();
   try { localStorage.setItem("trendly_login_tut", "1"); } catch (_) {}
@@ -246,6 +248,116 @@ $("doneGo").onclick = () => { $("doneModal").classList.add("hidden"); enterApp(c
 /* Login-required modal */
 $("modalOk").onclick = () => { $("loginModal").classList.add("hidden"); showAuth(false); };
 
+/* ---------- Coins (shown at the top of the side menu) ---------- */
+const COST = { tags: 10, hook: 5 };                      // the Worker has the final say; this is only for labels
+const coin = { left: null, max: 80 };
+function renderCoins(left, max) {
+  if (typeof left === "number") coin.left = left;
+  if (typeof max === "number") coin.max = max;
+  $("coinNum").textContent = coin.left == null ? "--" : coin.left;
+  const n = $("coinNum");
+  if (coin.left == null) n.removeAttribute("data-set");
+  else { n.setAttribute("data-set", ""); n.style.setProperty("--coin-h", Math.round(120 * Math.max(0, Math.min(1, coin.left / (coin.max || 1))))); }
+  $("coinMax").textContent = coin.left == null ? "" : "/ " + coin.max;
+  $("costTags").textContent = COST.tags + " coins";
+  $("costHook").textContent = COST.hook + " coins";
+}
+function resetCoins() { coin.left = null; renderCoins(); }
+async function refreshCoins() {
+  if (!currentUser) return;
+  try {
+    const r = await api("coins", {});
+    if (r.cost) Object.assign(COST, r.cost);
+    renderCoins(r.left, r.max);
+    updateGoLabel();
+  } catch (e) { log.warn("Coins:", e); }
+}
+
+/* ---------- Mode: Tags & Hashtags  <->  Suggestion (hook check) ---------- */
+const HOOK_SECS = 10;
+let mode = "tags";
+const MODES = {
+  tags: {
+    title: "What video are we optimizing today?",
+    sub: "Get tags, hashtags, keywords and titles for YouTube.",
+    drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
+    go: "Analyze video", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
+  },
+  hook: {
+    title: "How strong is your video's hook?",
+    sub: "Score your hook and get stronger opening lines.",
+    drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
+    go: "Check my hook", toggle: "Tags & Hashtags", icon: '<i class="fa-solid fa-hashtag"></i>'
+  }
+};
+function updateGoLabel() { $("go").textContent = MODES[mode].go; }
+/* Smooth mode switch: only opacity + transform move, so it stays smooth on phones */
+const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const EASE = "cubic-bezier(.22,.8,.3,1)";
+let switching = false;
+
+function fadeSwap(el, change, delay = 0) {
+  if (!el.animate || reduceMotion()) { change(); return Promise.resolve(); }
+  return new Promise((done) => {
+    setTimeout(() => {
+      const out = el.animate(
+        [{ opacity: 1, transform: "translateY(0)" }, { opacity: 0, transform: "translateY(-8px)" }],
+        { duration: 160, easing: "ease-in", fill: "forwards" });
+      out.onfinish = () => {
+        change();
+        const inn = el.animate(
+          [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }],
+          { duration: 280, easing: EASE });
+        out.cancel();
+        inn.onfinish = () => done();
+      };
+    }, delay);
+  });
+}
+
+function fadeHide(el, animate) {
+  if (el.classList.contains("hidden")) return Promise.resolve();
+  if (!animate || !el.animate || reduceMotion()) { el.classList.add("hidden"); return Promise.resolve(); }
+  return new Promise((done) => {
+    const a = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" });
+    a.onfinish = () => { el.classList.add("hidden"); a.cancel(); done(); };
+  });
+}
+
+function applyMode(m, animate = false) {
+  mode = m;
+  const t = MODES[m];
+  $("modeBtn").classList.toggle("is-hook", m === "hook");
+  hideError();
+  const swap = animate ? fadeSwap : (el, change) => { change(); return Promise.resolve(); };
+  const jobs = [
+    swap($("heroTitle"), () => { $("heroTitle").textContent = t.title; }, 0),
+    swap($("heroSub"), () => { $("heroSub").textContent = t.sub; }, 60),
+    swap($("dropText"), () => {
+      $("dropText").innerHTML = t.drop;
+      $("dropText").querySelectorAll(".maxmb").forEach(e => e.textContent = MAX_MB);
+    }, 120),
+    swap($("modeLbl"), () => { $("modeLbl").textContent = t.toggle; }, 0),
+    swap($("modeIc"), () => { $("modeIc").innerHTML = t.icon; }, 0),
+    fadeHide($("results"), animate),
+    fadeHide($("hookResults"), animate)
+  ];
+  if (!$("go").classList.contains("hidden")) jobs.push(swap($("go"), updateGoLabel, 160));
+  else updateGoLabel();
+  log.info("Mode:", m);
+  return Promise.all(jobs);
+}
+
+$("modeBtn").onclick = () => {
+  if (running || switching) return;
+  switching = true;
+  const b = $("modeBtn");
+  if (b.animate && !reduceMotion()) {
+    b.animate([{ transform: "scale(1)" }, { transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 260, easing: EASE });
+  }
+  applyMode(mode === "tags" ? "hook" : "tags", true).then(() => { switching = false; });
+};
+
 /* ---------- File selection ---------- */
 let chosen = null;
 function showError(m) { $("errBox").textContent = m; $("errBox").classList.remove("hidden"); }
@@ -256,6 +368,7 @@ function setUI(state) {
   $("btnRow").classList.toggle("hidden", state === "idle" || state === "running");
   $("go").classList.toggle("hidden", state !== "ready");
   $("again").classList.toggle("hidden", state !== "ready" && state !== "done");
+  $("modeBtn").disabled = state === "running";
 }
 setUI("idle");
 $("again").onclick = () => { $("file").value = ""; $("file").click(); };
@@ -274,6 +387,7 @@ function setFile(f) {
   v.controls = true;
   $("preview").appendChild(v);
   $("results").classList.add("hidden");
+  $("hookResults").classList.add("hidden");
   setUI("ready");
   $("dropEmpty").classList.add("hidden");
   log.info("Video selected:", f.name, f.type, f.size + " bytes");
@@ -285,12 +399,106 @@ $("file").onchange = (e) => setFile(e.target.files[0]);
 ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
 $("drop").addEventListener("drop", (e) => setFile(e.dataTransfer.files[0]));
 
+/* ---------- First 10 seconds only (Suggestion mode) ----------
+   The browser plays the first 10 seconds and records them (video + sound) into a small file.
+   Only that small file is uploaded. Needs a modern browser with MediaRecorder. */
+function clipFail(why) {
+  log.warn("Clip failed:", why);
+  const e = new Error("We couldn't process this video in your browser.");
+  e.safe = true;
+  return e;
+}
+const waitEv = (el, ev, ms) => new Promise((res) => {
+  const t = setTimeout(res, ms);
+  el.addEventListener(ev, () => { clearTimeout(t); res(); }, { once: true });
+});
+
+async function clipStart(file, secs) {
+  if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) throw clipFail("unsupported");
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = AC ? new AC() : null;                       // created inside the tap so phones allow sound capture
+  const url = URL.createObjectURL(file);
+  const v = document.createElement("video");
+  v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto"; v.src = url;
+  v.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none";
+  document.body.appendChild(v);
+  let stream = null, stop = false;
+  try {
+    let audioTrack = null;
+    if (ac) {
+      ac.resume().catch(() => {});
+      const node = ac.createMediaElementSource(v), dest = ac.createMediaStreamDestination();
+      node.connect(dest);                                // sound goes to the recorder only, nothing plays on the speakers
+      audioTrack = dest.stream.getAudioTracks()[0] || null;
+    }
+    const unlock = v.play().then(() => v.pause()).catch(() => {});   // started inside the tap, so mobile browsers allow the real play later
+    await new Promise((res, rej) => {
+      v.onloadedmetadata = res; v.onerror = () => rej(new Error("decode"));
+      setTimeout(() => rej(new Error("timeout")), 10000);
+    });
+    await unlock;
+    if (v.currentTime > 0.05) { v.currentTime = 0; await waitEv(v, "seeked", 1500); }
+
+    const vw = v.videoWidth, vh = v.videoHeight;
+    if (!vw || !vh) throw new Error("no video track");
+    const sc = Math.min(1, 720 / Math.max(vw, vh));
+    const w = Math.max(2, Math.round(vw * sc / 2) * 2), h = Math.max(2, Math.round(vh * sc / 2) * 2);
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(v, 0, 0, w, h);
+    stream = cv.captureStream(30);
+    if (audioTrack) stream.addTrack(audioTrack);
+
+    const mime = ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm", "video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4"]
+      .find((t) => MediaRecorder.isTypeSupported(t)) || "";
+    const rec = new MediaRecorder(stream, mime
+      ? { mimeType: mime, videoBitsPerSecond: 1200000, audioBitsPerSecond: 96000 }
+      : { videoBitsPerSecond: 1200000 });
+    const chunks = [];
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    const stopped = new Promise((res) => { rec.onstop = res; });
+    const draw = () => {
+      if (stop) return;
+      ctx.drawImage(v, 0, 0, w, h);
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw); else requestAnimationFrame(draw);
+    };
+    draw();
+    rec.start(250);
+    await v.play();
+    await new Promise((res, rej) => {                    // record until 10 seconds are done (or the video ends)
+      const t0 = performance.now();
+      const iv = setInterval(() => {
+        if (v.currentTime >= secs || v.ended) { clearInterval(iv); res(); }
+        else if (performance.now() - t0 > (secs + 8) * 1000) { clearInterval(iv); rej(new Error("stalled")); }
+      }, 100);
+      v.onerror = () => { clearInterval(iv); rej(new Error("decode")); };
+    });
+    stop = true; v.pause();
+    if (rec.state !== "inactive") rec.stop();
+    await stopped;
+
+    const type = (rec.mimeType || mime || "video/webm").split(";")[0];
+    const blob = new Blob(chunks, { type });
+    if (blob.size < 3000) throw new Error("empty recording");
+    log.info("First 10 seconds ready:", type, (blob.size / 1048576).toFixed(2) + " MB");
+    return new File([blob], "hook-first-10s." + (type.includes("mp4") ? "mp4" : "webm"), { type });
+  } catch (e) {
+    throw e.safe ? e : clipFail(e && e.message);
+  } finally {
+    stop = true;
+    try { v.pause(); } catch (_) {}
+    v.remove(); URL.revokeObjectURL(url);
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (ac) ac.close().catch(() => {});
+  }
+}
+
 /* ---------- Gemini (via Cloudflare Worker) ---------- */
 const CHUNK = 16 * 1024 * 1024;   // 8 MB ka multiple hona zaroori hai (Worker bhi yahi maanta hai)
 
-async function analyzeWithGemini(file) {
+async function analyzeWithGemini(file, m = "tags") {
   log.info("Requesting upload...");
-  const { uploadId } = await api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4" });
+  const { uploadId } = await api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4", mode: m });
 
   log.info("Uploading video in chunks...");
   let fileName = null;
@@ -310,8 +518,17 @@ async function analyzeWithGemini(file) {
   }
 
   log.info("Analyzing...");
+  if (m === "hook") { setSteps(2); clearTimeout(stepTimer); stepTimer = setTimeout(() => setSteps(3), 6000); }
   return await api("analyze", { file: fileName });
 }
+
+async function analyzeHook(file) {
+  const clip = await clipStart(file, HOOK_SECS);         // only the first 10 seconds leave the phone/computer
+  setSteps(1);
+  thumbPromise = captureFrames(file);         // fills the filmstrip while the small file uploads
+  return await analyzeWithGemini(clip, "hook");
+}
+
 /* ---------- Results ---------- */
 const clean = (arr, n) => [...new Set((arr || []).map(s => String(s).trim()).filter(Boolean))].slice(0, n);
 
@@ -356,15 +573,19 @@ function countUp(el, to) {
     if (p < 1) requestAnimationFrame(f);
   })(t0);
 }
-function renderScore(r) {
-  const sc = seoScore(r), fill = $("ringFill");
+/* Ring + number animation, shared by the SEO score and the hook score */
+function drawRing(fill, numEl, sc, greenAt, warnAt) {
   fill.style.transition = "none";
   fill.style.strokeDashoffset = "119.4";
   fill.getBoundingClientRect();                              // reflow, taaki animation phir se chale
   fill.style.transition = "";
-  fill.style.stroke = sc >= 75 ? "var(--green)" : sc >= 50 ? "var(--warn)" : "var(--danger)";
+  fill.style.stroke = sc >= greenAt ? "var(--green)" : sc >= warnAt ? "var(--warn)" : "var(--danger)";
   fill.style.strokeDashoffset = String(119.4 * (1 - sc / 100));
-  countUp($("scoreNum"), sc);
+  countUp(numEl, sc);
+}
+function renderScore(r) {
+  const sc = seoScore(r);
+  drawRing($("ringFill"), $("scoreNum"), sc, 75, 50);
   $("scoreMsg").textContent = (sc >= 85 ? "Excellent, ready to publish." : sc >= 70 ? "Good, ready to use." : sc >= 50 ? "Fair, add your own keywords too." : "Low, try a clearer video.") + " Estimate based on your tags, hashtags and titles.";
 }
 $("copyAll").onclick = (e) => {
@@ -401,6 +622,53 @@ function showResults(d) {
   return res;
 }
 
+/* Suggestion mode: hook score + stronger hook lines */
+function fillList(ul, items) {
+  ul.innerHTML = "";
+  (items || []).forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+}
+function showHook(d) {
+  const sc = Math.max(0, Math.min(100, Math.round(d.score || 0)));
+  $("hookResults").classList.remove("hidden");
+  drawRing($("hRingFill"), $("hScoreNum"), sc, 90, 70);
+  $("hScoreMsg").textContent = d.good
+    ? "Excellent hook. Viewers will keep watching, no changes needed."
+    : sc >= 70 ? "Good, but it can be stronger. Try the lines below."
+    : "Weak hook. Viewers may leave early. Use one of the lines below.";
+  $("hVerdict").textContent = d.verdict || "";
+
+  const note = !d.hasAudio ? "No audio detected at the start of your video. Add a voice hook or a strong on-screen text line."
+    : !d.hasSpeech ? "Only music or sound, nobody speaks at the start of your video. Start with a spoken hook."
+    : "";
+  $("hNote").textContent = note;
+  $("hNote").classList.toggle("hidden", !note);
+
+  $("hLang").textContent = d.language ? "Language: " + d.language : "";
+  $("hCurrent").textContent = d.currentHook || "No clear hook found in the first seconds.";
+  fillList($("hGood"), d.strengths);
+  fillList($("hBad"), d.weaknesses);
+
+  const hooks = d.hooks || [];
+  $("hSuggestBox").classList.toggle("hidden", !hooks.length);
+  const ul = $("hHooks"); ul.innerHTML = "";
+  hooks.forEach((h) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="t"></span><span class="row-r"><span class="n"></span><button class="btn sm">Copy</button></span>';
+    const t = li.querySelector(".t"); t.textContent = h.text;
+    if (h.roman) { const r = document.createElement("small"); r.className = "roman"; r.textContent = h.roman; t.appendChild(r); }
+    li.querySelector(".n").textContent = h.type || "";
+    li.querySelector("button").onclick = (e) => copyText(h.text, e.target);
+    ul.appendChild(li);
+  });
+
+  $("hTipsBox").classList.toggle("hidden", !(d.tips || []).length);
+  fillList($("hTips"), d.tips);
+
+  const tr = d.trending || [];
+  $("hTrendBox").classList.toggle("hidden", !tr.length);
+  renderChips($("hTrend"), tr);
+}
+
 async function writeClip(text) {                       // works on older mobile browsers too
   try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
   try {
@@ -417,7 +685,7 @@ function renderChips(box, tags) {                      // tap a tag to copy just
   tags.forEach(t => {
     const b = document.createElement("button");
     b.className = "chip"; b.textContent = t;
-    b.onclick = async () => { const ok = await writeClip(t); b.classList.add("done"); toast(ok ? "Tag copied \u2713" : "Couldn't copy"); };
+    b.onclick = async () => { const ok = await writeClip(t); b.classList.add("done"); toast(ok ? "Copied \u2713" : "Couldn't copy"); };
     box.appendChild(b);
   });
 }
@@ -438,25 +706,39 @@ let running = false;
 $("go").onclick = async () => {
   if (running || !chosen) return;
   if (!currentUser) { log.info("Guest tried to analyze, login required"); $("loginModal").classList.remove("hidden"); $("modalOk").focus(); return; }
+  const m = mode;                                        // the mode is locked for this run
+  if (coin.left != null && coin.left < COST[m]) {
+    showError(`Not enough coins. You need ${COST[m]} but have ${coin.left}. Coins refill every day.`);
+    return;
+  }
   running = true;
   hideError();
   setUI("running");
-  tutOn("analyze");
+  if (m === "hook") tutHide(); else tutOn("analyze");
   $("results").classList.add("hidden");
-  startSkeleton();
+  $("hookResults").classList.add("hidden");
+  startSkeleton(m);
 
   const file = chosen;
 
-  // Worker does everything: upload check, analysis, history save and analytics log
-  const ai = await analyzeWithGemini(file)
-        .then(d => { log.info("Analysis complete. Gemini tags:", d.stats && d.stats.gemini, "| YouTube suggestions found:", d.stats && d.stats.yt, "| used in final tags:", d.stats && d.stats.ytUsed); return { data: d }; })
+  // Worker does everything: coins, upload check, analysis, history save and analytics log
+  const ai = await (m === "hook" ? analyzeHook(file) : analyzeWithGemini(file, "tags"))
+    .then(d => {
+      if (m === "hook") log.info("Hook score:", d.score, "| sources found: YouTube", d.stats && d.stats.yt, "Google", d.stats && d.stats.google, "DuckDuckGo", d.stats && d.stats.ddg, "Reddit", d.stats && d.stats.reddit, "| hooks written:", d.stats && d.stats.hooks);
+      else log.info("Analysis complete. Gemini tags:", d.stats && d.stats.gemini, "| YouTube suggestions found:", d.stats && d.stats.yt, "| used in final tags:", d.stats && d.stats.ytUsed);
+      return { data: d };
+    })
     .catch(e => { log.error(e); return { error: e.message, safe: e.safe }; });
 
   const thumb = ai.error ? null : await Promise.race([thumbPromise, sleep(2500).then(() => null)]);
   stopSkeleton();
-  if (ai.error) { showError(ai.safe ? ai.error : "We couldn't analyze this video. Please try again."); tutOn("failed"); }
-  else {
-    showResults(ai.data);
+  if (ai.error) {
+    showError(ai.safe ? ai.error : "We couldn't analyze this video. Please try again.");
+    if (m === "tags") tutOn("failed");
+    refreshCoins();                                      // a failed run is refunded, show the real balance
+  } else {
+    if (typeof ai.data.coins === "number") renderCoins(ai.data.coins, ai.data.max);
+        if (m === "hook") showHook(ai.data); else showResults(ai.data);
     if (ai.data.hid && thumb) sendThumb(ai.data.hid, thumb).catch(e => log.warn("Thumb save failed:", e));
   }
 
@@ -489,9 +771,9 @@ log.info("Performance mode:", lowEnd ? "lite" : "full");
 
 let stepTimer = null, capToken = 0;
 
-/* Grab 6 real frames from the user's video for the filmstrip */
+/* Grab 6 real frames from the user's video for the filmstrip (limitSec = only look at the first seconds) */
 let thumbPromise = Promise.resolve(null);
-async function captureFrames(file) {
+async function captureFrames(file, limitSec) {
   let thumb = null;
   const token = ++capToken;
   const frames = document.querySelectorAll("#skel .fr");
@@ -501,11 +783,12 @@ async function captureFrames(file) {
   v.muted = true; v.preload = "auto"; v.playsInline = true; v.src = url;
   try {
     await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; setTimeout(rej, 5000); });
+    const span = limitSec ? Math.min(v.duration || 1, limitSec) : (v.duration || 1);
     const cv = document.createElement("canvas"); cv.width = 160; cv.height = 100;
     const ctx = cv.getContext("2d");
     for (let i = 0; i < frames.length; i++) {
       if (token !== capToken) return null;
-      v.currentTime = (v.duration || 1) * (i + 0.5) / frames.length;
+      v.currentTime = span * (i + 0.5) / frames.length;
       await new Promise(r => { v.onseeked = r; setTimeout(r, 1500); });
       const s = Math.max(160 / v.videoWidth, 100 / v.videoHeight);
       ctx.drawImage(v, (160 - v.videoWidth * s) / 2, (100 - v.videoHeight * s) / 2, v.videoWidth * s, v.videoHeight * s);
@@ -540,18 +823,27 @@ function setSteps(active) {
   });
 }
 
-function startSkeleton() {
+const SKEL_TXT = {
+  tags: ["Reading your video", "Watching every scene", "Listening to the audio", "Writing tags and titles"],
+  hook: ["Reading your video", "Checking your hook", "Finding trending ideas", "Writing stronger hooks"]
+};
+function startSkeleton(m = "tags") {
   let i = 0;
   buildWave();
+  document.querySelectorAll("#ls li").forEach((li, k) => { li.lastChild.textContent = SKEL_TXT[m][k]; });
   setSteps(0);
   $("skel").classList.remove("hidden");
   $("skel").scrollIntoView({ behavior: lowEnd ? "auto" : "smooth", block: "nearest" });
-  thumbPromise = chosen ? captureFrames(chosen) : Promise.resolve(null);
-  clearInterval(stepTimer);
-  stepTimer = setInterval(() => { i = Math.min(i + 1, 3); setSteps(i); }, 5000);
+  clearInterval(stepTimer); clearTimeout(stepTimer);
+  if (m === "tags") {
+    thumbPromise = chosen ? captureFrames(chosen) : Promise.resolve(null);
+    stepTimer = setInterval(() => { i = Math.min(i + 1, 3); setSteps(i); }, 5000);
+  } else {
+    thumbPromise = Promise.resolve(null);                // hook mode moves the steps itself (see analyzeHook)
+  }
 }
 function stopSkeleton() {
-  clearInterval(stepTimer);
+  clearInterval(stepTimer); clearTimeout(stepTimer);
   capToken++;
   $("skel").classList.add("hidden");
 }
@@ -605,6 +897,7 @@ function setDrawer(open) {
   $("drawer").classList.toggle("open", open);
   $("scrim").classList.toggle("open", open);
   $("drawer").setAttribute("aria-hidden", String(!open));
+  if (open) refreshCoins();                          // always show the latest balance when the menu opens
 }
 $("menuBtn").onclick = () => setDrawer(true);
 $("drawerClose").onclick = () => setDrawer(false);
@@ -747,8 +1040,16 @@ function histWatch() {
 
 /* Card ka andar ka heavy part (textareas, chips) sirf pehli baar kholne par banta hai */
 function buildHistBody(it, body, art) {
-  [["Tags", (it.tags || []).join(", ")], ["Hashtags", (it.hashtags || []).join(" ")],
-   ["Keywords", (it.keywords || []).join(", ")], ["Titles", (it.titles || []).join("\n")]].forEach(([label, text]) => {
+  const sections = it.type === "hook"
+    ? [["Score", (it.score || 0) + "/100" + (it.verdict ? "\n" + it.verdict : "")],
+       ["Current hook", it.currentHook || "No clear hook found."],
+       ["What works", (it.strengths || []).join("\n")],
+       ["What to fix", (it.weaknesses || []).join("\n")],
+       ["Stronger hook lines", (it.hooks || []).map((h) => h.text + (h.roman ? " (" + h.roman + ")" : "")).join("\n")],
+       ["Tips", (it.tips || []).join("\n")]].filter(([, text]) => text)
+    : [["Tags", (it.tags || []).join(", ")], ["Hashtags", (it.hashtags || []).join(" ")],
+       ["Keywords", (it.keywords || []).join(", ")], ["Titles", (it.titles || []).join("\n")]];
+  sections.forEach(([label, text]) => {
     const box = document.createElement("div"); box.className = "box";
     box.innerHTML = '<header><h3></h3><button class="btn sm ghost">Copy</button></header><textarea readonly></textarea>';
     box.querySelector("h3").textContent = label;
@@ -784,7 +1085,8 @@ function histCard(it, now) {
   if (src) th.style.backgroundImage = "url(" + JSON.stringify(src) + ")";
   const meta = document.createElement("span"); meta.className = "hc-meta";
   const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
-  const b = document.createElement("b"); b.textContent = (it.titles && it.titles[0]) || it.fileName || "Video";
+  const b = document.createElement("b");
+b.textContent = it.type === "hook" ? "Hook check \u00B7 " + (it.score || 0) + "/100" : (it.titles && it.titles[0]) || it.fileName || "Video";
   const sp = document.createElement("span");
   sp.textContent = new Date(it.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + " · Deletes in " + days + (days === 1 ? " day" : " days");
   meta.append(b, sp);
@@ -947,3 +1249,7 @@ firebase.database().ref("notice").on("value", (s) => {
   ["homeView", "authView", "historyView", "setupView"].forEach(id => { $(id).inert = on; }); // keyboard se bhi kuch na ho
   if (on) tutHide();
 }, (e) => log.warn("Notice listener:", e));
+
+/* ---------- Start state ---------- */
+applyMode("tags");
+renderCoins();
