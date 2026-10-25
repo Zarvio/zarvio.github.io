@@ -71,6 +71,10 @@
         <span class="mode-ic" id="modeIc" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
         <span id="modeLbl">Suggestion</span>
       </button>
+      <button class="modebtn" id="ctBtn" type="button" aria-label="Find tags of any video">
+        <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <span id="ctLbl">Tag Finder</span>
+      </button>
     </div>
 
     <div class="drop" id="drop">
@@ -83,6 +87,44 @@
       <div class="preview" id="preview"></div>
     </div>
 
+    <!-- Tag Finder input (same box as "Choose video") -->
+    <div class="drop ct-drop hidden" id="ctInput">
+      <div class="ct-box">
+        <p class="ct-title">Paste a YouTube video link</p>
+        <div class="ct-row">
+          <input id="ctUrl" type="text" inputmode="url" autocomplete="off" placeholder="https://youtube.com/watch?v=…" aria-label="YouTube video link">
+          <button class="btn" id="ctGo">Get details</button>
+        </div>
+      </div>
+    </div>
+<!-- Saved mode ko page dikhne se pehle hi lagao, taaki load par heading aur boxes na badlein -->
+<script>
+(function () {
+  try {
+    var m = localStorage.getItem("trendly_mode");
+    if (m !== "hook" && m !== "ct") return;
+    var T = {
+      hook: { t: "How strong is your video's hook?", s: "Score your hook and get stronger opening lines.",
+              tg: "Tags & Hashtags", ti: '<i class="fa-solid fa-hashtag"></i>',
+              cl: "Tag Finder", ci: '<i class="fa-solid fa-magnifying-glass"></i>' },
+      ct:   { t: "Find the tags of any YouTube video", s: "Paste a link to see its tags and description.",
+              tg: "Suggestion", ti: '<i class="fa-solid fa-lightbulb"></i>',
+              cl: "Tags & Hashtags", ci: '<i class="fa-solid fa-hashtag"></i>' }
+    }[m];
+    var g = function (i) { return document.getElementById(i); };
+    g("heroTitle").textContent = T.t;
+    g("heroSub").textContent = T.s;
+    g("modeLbl").textContent = T.tg;  g("modeIc").innerHTML = T.ti;
+    g("ctLbl").textContent = T.cl;    g("ctIc").innerHTML = T.ci;
+    if (m === "hook") g("modeBtn").classList.add("is-hook");
+    if (m === "ct") {
+      g("ctBtn").classList.add("is-hook");
+      g("drop").classList.add("hidden");
+      g("ctInput").classList.remove("hidden");
+    }
+  } catch (e) {}
+})();
+</script>
     <div class="btnrow hidden" id="btnRow">
       <button class="btn" id="go">Analyze video</button>
       <button class="btn ghost" id="again">Upload another video</button>
@@ -179,6 +221,41 @@
         <p class="chip-hint">Tap a phrase to copy it.</p>
       </div>
     </div>
+
+    <!-- ===== Tag Finder results ===== -->
+    <div class="results hidden" id="ctResults">
+      <div class="box ct-video" id="ctVideo">
+        <a class="ct-thumb" id="ctThumb" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open video on YouTube">
+          <img id="ctThumbImg" alt="" referrerpolicy="no-referrer">
+          <span class="ct-play" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
+        </a>
+        <div class="ct-meta">
+          <h3 class="ct-vtitle" id="ctVTitle"></h3>
+          <p class="ct-chan" id="ctChan"></p>
+          <p class="ct-when" id="ctWhen"></p>
+          <div class="ct-stats" id="ctStats"></div>
+           <button class="btn sm ghost ct-dl" id="ctDl" type="button" disabled>Download thumbnail</button>
+        </div>
+      </div>
+
+            <div class="ct-body hidden" id="ctBody">
+        <div class="box">
+          <header><h3>Tags<small id="ctTagInfo"></small></h3><button class="btn sm ghost" data-copy="ctTags">Copy</button></header>
+          <textarea id="ctTags" readonly></textarea>
+          <div class="tagchips" id="ctTagChips"></div>
+          <p class="chip-hint">Tap a tag to copy it one by one.</p>
+        </div>
+        <div class="box">
+          <header><h3>Description<small id="ctDescInfo"></small></h3><button class="btn sm ghost" data-copy="ctDesc">Copy</button></header>
+          <textarea id="ctDesc" readonly></textarea>
+        </div>
+        <div class="box">
+          <header><h3>More details</h3></header>
+          <ul class="ct-info" id="ctInfo"></ul>
+          <p class="chip-hint">Viral score = views ÷ subscribers. Above 1x means the video reached more people than the channel's subscriber count.</p>
+        </div>
+      </div>
+    </div>
   </main>
 
   <section class="sec" id="how">
@@ -199,6 +276,7 @@
       <article class="card rv"><h3>5 click-worthy titles</h3><p>Honest, catchy titles under 70 characters, with a length check on each.</p></article>
       <article class="card rv"><h3>SEO score</h3><p>See an instant score for your results and copy everything in one tap.</p></article>
       <article class="card rv"><h3>Hook check</h3><p>Use Suggestion to score your video's hook and get stronger opening lines.</p></article>
+      <article class="card rv"><h3>Tag Finder</h3><p>Paste any YouTube link and see its tags, stats and description instantly.</p></article>
       <article class="card rv"><h3>Sees and hears</h3><p>Analysis uses both what appears on screen and what is said.</p></article>
       <article class="card rv"><h3>Private by design</h3><p>Your video is deleted automatically as soon as the analysis finishes.</p></article>
     </div>
@@ -209,6 +287,7 @@
     <details class="rv"><summary>Is Trenndly free to use?</summary><p>Yes. Every account gets free coins each day. Analyzing a video costs 10 coins and a hook suggestion costs 5 coins.</p></details>
     <details class="rv"><summary>What happens to my video?</summary><p>It is used only for analysis and is deleted automatically as soon as the analysis finishes.</p></details>
     <details class="rv"><summary>What does Suggestion do?</summary><p>It scores your video's hook and, if the score is below 90, writes stronger opening lines in your video's language.</p></details>
+    <details class="rv"><summary>What is Tag Finder?</summary><p>Paste any public YouTube video link and see its thumbnail, tags, views, likes, comments, subscribers, upload time, language and description. It costs no coins and is saved in your History.</p></details>
     <details class="rv"><summary>What video size is supported?</summary><p>Videos up to <span class="maxmb">300</span> MB in any common format.</p></details>
     <details class="rv"><summary>Why do I need to log in?</summary><p>An account keeps the service secure and prevents misuse.</p></details>
   </section>
@@ -323,6 +402,7 @@
     <div class="coin-costs">
       <span>Analyze video <b id="costTags">10</b></span>
       <span>Suggestion <b id="costHook">5</b></span>
+      <span>Tag Finder <b>Free</b></span>
       <span>Refills every day</span>
     </div>
   </div>

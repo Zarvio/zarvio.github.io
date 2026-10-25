@@ -1,10 +1,10 @@
 /* =====================================================================
-   hook.css: Suggestion mode, coins card, hook results.
+   hook.css: Suggestion mode, coins card, hook results, competitor tags.
    Loaded after style.css and chat.css. Uses the same colour variables.
    ===================================================================== */
 
 /* ---------- Mode button (replaces the Tags / Hashtags / Other chips) ---------- */
-.modebar { display:flex; justify-content:center; margin:-4px 0 26px; animation:rise .7s .16s var(--ease) both; }
+.modebar { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:-4px 0 26px; animation:rise .7s .16s var(--ease) both; }
 .modebtn {
   display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:var(--r-pill);
   border:1px solid color-mix(in srgb, var(--green) 45%, var(--line));
@@ -71,3 +71,141 @@
 #coinNum { transition: color .4s ease; }
 #coinNum[data-set] { color: hsl(var(--coin-h) 75% 38%); }
 html[data-theme="dark"] #coinNum[data-set] { color: hsl(var(--coin-h) 80% 58%); }
+/* ---------- Tag Finder ---------- */
+.ct-drop { text-align:center; }
+.ct-box { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; }
+.ct-title { margin:0; color:var(--muted); }
+.ct-row { display:flex; gap:10px; width:100%; max-width:560px; }
+.ct-row input {
+  flex:1; min-width:0; padding:13px 16px; border-radius:var(--r-pill);
+  border:1px solid var(--line); background:var(--bg); color:var(--ink);
+  font-size:15px; font-family:inherit;
+}
+.ct-row input:focus { outline:none; border-color:color-mix(in srgb, var(--green) 55%, var(--line)); }
+.ct-row .btn { flex:none; white-space:nowrap; }
+.ct-row .btn:disabled { opacity:.55; cursor:not-allowed; }
+
+#ctResults:not(.hidden), .ct-body:not(.hidden) { display:grid; gap:16px; }
+.ct-body { animation:ctin .4s var(--ease) both; }
+@keyframes ctin { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes ctsh { to { background-position:-200% 0; } }
+
+.ct-video { display:flex; gap:18px; padding:14px; align-items:flex-start; animation:ctin .35s var(--ease) both; }
+.ct-thumb {
+  position:relative; display:block; flex:none; width:260px; aspect-ratio:16/9;
+  border-radius:var(--r-md); overflow:hidden; background:var(--surface);
+}
+.ct-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s var(--ease); }
+.ct-thumb img.bad { visibility:hidden; }
+.ct-play {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:20px; background:rgba(0,0,0,.2); opacity:0; transition:opacity .2s;
+}
+@media (hover:hover) {
+  .ct-thumb:hover .ct-play { opacity:1; }
+  .ct-thumb:hover img { transform:scale(1.04); }
+}
+.ct-meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; text-align:left; }
+.ct-vtitle {
+  margin:0; font-size:17px; font-weight:600; line-height:1.35; word-break:break-word;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+}
+.ct-chan { margin:0; font-size:14px; font-weight:500; }
+.ct-when { margin:0; font-size:13px; color:var(--muted); }
+.ct-vtitle:empty, .ct-chan:empty, .ct-when:empty { display:none; }
+
+.ct-stats { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px; margin-top:6px; }
+.ct-stat {
+  display:flex; flex-direction:column; gap:2px; min-width:0; padding:9px 12px;
+  border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface);
+}
+.ct-stat b { font-size:15px; font-weight:600; letter-spacing:-.01em; }
+.ct-stat span { font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+
+.ct-video.loading .ct-vtitle, .ct-video.loading .ct-chan, .ct-video.loading .ct-when, .ct-sk {
+  display:block; color:transparent; border-radius:6px; border-color:transparent;
+  background:linear-gradient(90deg, var(--line) 25%, color-mix(in srgb, var(--line) 40%, var(--bg)) 50%, var(--line) 75%);
+  background-size:200% 100%; animation:ctsh 1.2s linear infinite;
+}
+.ct-video.loading .ct-vtitle { height:20px; width:85%; }
+.ct-video.loading .ct-chan { height:14px; width:45%; }
+.ct-video.loading .ct-when { height:12px; width:60%; }
+.ct-stat.ct-sk { height:52px; }
+
+#ctTags { min-height:96px; }
+#ctDesc { min-height:300px; resize:vertical; line-height:1.55; }
+
+@media (max-width:600px) {
+  .ct-row { flex-direction:column; }
+  .ct-row .btn { width:100%; }
+  .ct-video { flex-direction:column; gap:12px; }
+  .ct-thumb { width:100%; }
+  #ctDesc { min-height:240px; }
+}
+/* ---------- Smooth: box ek hi baar animate, dono buttons same size ---------- */
+
+/* Upload box + link box: animation rahega, bas delay nahi (turant ek baar chalega) */
+#drop, #ctInput { animation:rise .45s var(--ease) both; animation-delay:0s; }
+
+/* Dono mode buttons hamesha same size */
+.modebtn { width:190px; justify-content:center; }
+.modebtn .mode-ic { width:18px; flex:none; text-align:center; }
+#modeLbl, #ctLbl { white-space:nowrap; }
+
+/* Tag Finder results: andar ke boxes alag se animate na hon, sirf ek baar */
+#ctResults .box { animation:none !important; }
+#ctResults .ct-video { animation:ctin .35s var(--ease) both !important; }
+
+@media (max-width:600px) {
+  .modebtn { width:auto; flex:1 1 calc(50% - 6px); min-width:0; padding-left:10px; padding-right:10px; }
+}
+/* ---------- Upload box aur Tag Finder box: EXACT same height ---------- */
+:root { --boxh:152px; }
+#drop, #ctInput {
+  min-height:var(--boxh) !important;
+  display:flex; flex-direction:column; justify-content:center;
+}
+#ctInput { height:var(--boxh) !important; overflow:hidden; }   /* Tag Finder box hamesha exact is height ka */
+#drop.hidden, #ctInput.hidden { display:none !important; }
+#drop .drop-empty { width:100%; }
+#ctInput .ct-box { gap:10px; }
+#ctInput .ct-row { gap:8px; }
+
+@media (max-width:600px) {
+  :root { --boxh:176px; }          /* mobile par input + button upar neeche aate hain, isliye thoda lamba */
+  #ctInput { padding-top:16px; padding-bottom:16px; }
+}
+/* ---------- Tag Finder stat tiles: row + column grid ---------- */
+.ct-meta { width:100%; }
+.ct-stats {
+  display:grid !important; width:100%;
+  grid-template-columns:repeat(3, minmax(0, 1fr)) !important;   /* desktop: 3 column */
+  gap:8px;
+}
+.ct-stat { width:100%; min-width:0; }
+
+@media (max-width:600px) {
+  .ct-stats { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; }   /* mobile: 2 column */
+  .ct-stat { padding:9px 12px; }
+}
+/* ---------- Tag Finder: insight tiles + more details ---------- */
+.ct-stats { display:grid !important; grid-template-columns:repeat(4, minmax(0, 1fr)) !important; }
+.ct-dl { align-self:flex-start; margin-top:6px; }
+.ct-dl:disabled { opacity:.4; cursor:not-allowed; }
+
+.ct-info { list-style:none; margin:0; padding:12px 16px 10px; display:grid; gap:9px; font-size:14px; }
+.ct-info li { display:flex; justify-content:space-between; gap:14px; padding-bottom:8px; border-bottom:1px dashed var(--line); }
+.ct-info li:last-child { border-bottom:0; padding-bottom:0; }
+.ct-info li span { color:var(--muted); flex:none; }
+.ct-info li b { text-align:right; font-weight:500; word-break:break-word; }
+
+@media (max-width:600px) {
+  .ct-stats { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; }
+  .ct-dl { width:100%; }
+}
+/* ---------- Retry note (Second / Third attempt) ---------- */
+.try-note {
+  margin:14px 0 0; padding:8px 12px; border-radius:var(--r-sm); text-align:center; font-size:13px; font-weight:500;
+  color:var(--warn); background:color-mix(in srgb, var(--warn) 12%, transparent);
+  animation:rise .3s var(--ease) both;
+}

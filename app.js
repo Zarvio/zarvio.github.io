@@ -1,5 +1,5 @@
 /* Viral Tags for YouTube. Console stays silent unless DEBUG is true. */
-const DEBUG = false;                     // production: false. Testing ke time true karo
+const DEBUG = true;                     // production: false. Testing ke time true karo
 const log = {
   info: (...a) => { if (DEBUG) console.log("%c[ViralTags]", "color:#D92D20;font-weight:bold", ...a); },
   warn: (...a) => { if (DEBUG) console.warn("[ViralTags]", ...a); },
@@ -10,22 +10,33 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 firebase.initializeApp(firebaseConfig);
 
-/* ---------- Worker API (all sensitive work happens there) ---------- */
-/* opts.anon = no login needed | opts.user = use this user's token (e.g. right after sign-up) */
+/* Internet band / network toot gaya: retry nahi, seedha saaf message */
+function netErr() {
+  const e = new Error("No internet connection. Please check your data or Wi-Fi and try again.");
+  e.safe = true; e.offline = true;
+  return e;
+}
+const isNetFail = (e) => !!e && (e.name === "TypeError" || e.code === "auth/network-request-failed");
+
 async function api(action, payload, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   const u = opts.user || currentUser;
-  if (!opts.anon && u) headers.Authorization = "Bearer " + await u.getIdToken();
-  const res = await fetch(`${API_URL}?action=${action}`, { method: "POST", headers, body: JSON.stringify(payload || {}) });
+  if (!opts.anon && u) {
+    try { headers.Authorization = "Bearer " + await u.getIdToken(); }
+    catch (e) { throw isNetFail(e) ? netErr() : e; }
+  }
+  let res;
+  try { res = await fetch(`${API_URL}?action=${action}`, { method: "POST", headers, body: JSON.stringify(payload || {}) }); }
+  catch (e) { throw netErr(); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const e = new Error(data.error || "Server error " + res.status);
     e.safe = res.status >= 400 && res.status < 500;       // 4xx messages are written for users, safe to show
+    e.status = res.status; e.stage = action;
     throw e;
   }
   return data;
 }
-
 /* ---------- Views & Auth ---------- */
 let currentUser = null, signupMode = false;
 let signingUp = false;                                   // true while a manual sign-up is in progress (user must verify email first)
@@ -273,7 +284,7 @@ async function refreshCoins() {
   } catch (e) { log.warn("Coins:", e); }
 }
 
-/* ---------- Mode: Tags & Hashtags  <->  Suggestion (hook check) ---------- */
+/* ---------- Mode: Tags & Hashtags  <->  Suggestion (hook check)  <->  Competitor Tags ---------- */
 const HOOK_SECS = 10;
 let mode = "tags";
 const MODES = {
@@ -288,9 +299,15 @@ const MODES = {
     sub: "Score your hook and get stronger opening lines.",
     drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
     go: "Check my hook", toggle: "Tags & Hashtags", icon: '<i class="fa-solid fa-hashtag"></i>'
+  },
+    ct: {
+    title: "Find the tags of any YouTube video",
+    sub: "Paste a link to see its tags and description.",
+    drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
+    go: "Get details", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
   }
 };
-function updateGoLabel() { $("go").textContent = MODES[mode].go; }
+function updateGoLabel() { if (mode === "ct") return; $("go").textContent = MODES[mode].go; }
 /* Smooth mode switch: only opacity + transform move, so it stays smooth on phones */
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const EASE = "cubic-bezier(.22,.8,.3,1)";
@@ -316,20 +333,65 @@ function fadeSwap(el, change, delay = 0) {
 }
 
 function fadeHide(el, animate) {
-  if (el.classList.contains("hidden")) return Promise.resolve();
+  if (!el || el.classList.contains("hidden")) return Promise.resolve();
   if (!animate || !el.animate || reduceMotion()) { el.classList.add("hidden"); return Promise.resolve(); }
   return new Promise((done) => {
     const a = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" });
     a.onfinish = () => { el.classList.add("hidden"); a.cancel(); done(); };
   });
 }
+const modeDone = { tags: false, hook: false };            // kis mode ka result ban chuka hai
+const CT_BTN = {
+  on:  { lbl: "Tags & Hashtags", ic: '<i class="fa-solid fa-hashtag"></i>' },
+  off: { lbl: "Tag Finder", ic: '<i class="fa-solid fa-magnifying-glass"></i>' }
+};
 
+function fadeShow(el, animate) {
+  const was = el.classList.contains("hidden");
+  el.classList.remove("hidden");
+    if (el.id === "drop" || el.id === "ctInput" || el.id === "ctResults") return Promise.resolve();   // inka animation CSS karta hai
+  if (!was || !animate || !el.animate || reduceMotion()) return Promise.resolve();
+  return new Promise((done) => {
+    const a = el.animate(
+      [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 280, easing: EASE });
+    a.onfinish = () => done();
+  });
+}
+function swapBoxes(showEl, hideEl, animate) {            // one fades out, then the other fades in
+  return fadeHide(hideEl, animate).then(() => fadeShow(showEl, animate));
+}
+/* Is mode ke liye buttons kya dikhen: koi video nahi = idle, video hai = ready, result ban chuka = done */
+const modeUiState = (m) => !chosen ? "idle" : modeDone[m] ? "done" : "ready";
+/* Video preview tayyar ho jaaye tab hi buttons dikhao, warna buttons upar-neeche kudte hain */
+function previewReady(ms) {
+  const v = $("preview").querySelector("video");
+  if (!v || v.readyState >= 2) return Promise.resolve();
+  return new Promise((res) => {
+    const t = setTimeout(res, ms);
+    v.addEventListener("loadeddata", () => { clearTimeout(t); res(); }, { once: true });
+  });
+}
+async function settleButtons(m, animate) {
+  const st = modeUiState(m);
+  if (!animate) { updateGoLabel(); setUI(st); return; }
+  // button pehle se dikh raha hai aur dikhta rahega: sirf uska text fade hoke badle
+  if ($("go").offsetParent && st === "ready") { await fadeSwap($("go"), updateGoLabel, 0); return; }
+  if ($("btnRow").classList.contains("hidden") && st !== "idle" && st !== "running") await previewReady(500);
+  await setUIAnimated(st);
+}
 function applyMode(m, animate = false) {
-  mode = m;
-  const t = MODES[m];
+    mode = m;
+   try { localStorage.setItem("trendly_mode", m); } catch (_) {}   // user ka aakhri mode yaad rahe
+  ctMode = m === "ct";
+  if (ctMode) ctSetBtn();                                // wapas aane par button "Fetched ✓" hi dikhe
+  const t = MODES[m], cb = ctMode ? CT_BTN.on : CT_BTN.off;
   $("modeBtn").classList.toggle("is-hook", m === "hook");
+  $("ctBtn").classList.toggle("is-hook", ctMode);
   hideError();
   const swap = animate ? fadeSwap : (el, change) => { change(); return Promise.resolve(); };
+  // har mode ka result sirf apne mode mein dikhe, aur wapas aane par wahi purana result
+    const showRes = { results: m === "tags" && modeDone.tags, hookResults: m === "hook" && modeDone.hook, ctResults: m === "ct" && (ctDone || ctBusy) };
   const jobs = [
     swap($("heroTitle"), () => { $("heroTitle").textContent = t.title; }, 0),
     swap($("heroSub"), () => { $("heroSub").textContent = t.sub; }, 60),
@@ -337,17 +399,26 @@ function applyMode(m, animate = false) {
       $("dropText").innerHTML = t.drop;
       $("dropText").querySelectorAll(".maxmb").forEach(e => e.textContent = MAX_MB);
     }, 120),
-    swap($("modeLbl"), () => { $("modeLbl").textContent = t.toggle; }, 0),
-    swap($("modeIc"), () => { $("modeIc").innerHTML = t.icon; }, 0),
-    fadeHide($("results"), animate),
-    fadeHide($("hookResults"), animate)
+        ...["results", "hookResults", "ctResults"].map(id => showRes[id] ? (id === "ctResults" ? Promise.resolve() : fadeShow($(id), animate)) : fadeHide($(id), animate))
   ];
-  if (!$("go").classList.contains("hidden")) jobs.push(swap($("go"), updateGoLabel, 160));
-  else updateGoLabel();
+  // only the button that actually changes gets swapped, so you never see two same buttons
+  if ($("modeLbl").textContent !== t.toggle) {
+    jobs.push(swap($("modeLbl"), () => { $("modeLbl").textContent = t.toggle; }, 0));
+    jobs.push(swap($("modeIc"), () => { $("modeIc").innerHTML = t.icon; }, 0));
+  }
+  if ($("ctLbl").textContent !== cb.lbl) {
+    jobs.push(swap($("ctLbl"), () => { $("ctLbl").textContent = cb.lbl; }, 0));
+    jobs.push(swap($("ctIc"), () => { $("ctIc").innerHTML = cb.ic; }, 0));
+  }
+    const boxSwap = ctMode ? swapBoxes($("ctInput"), $("drop"), animate) : swapBoxes($("drop"), $("ctInput"), animate);
+  jobs.push(boxSwap);
+  // buttons: pehle boxes badal jaayein, phir buttons aayein (taaki upar-neeche na kudein)
+  if (ctMode) jobs.push(fadeHide($("btnRow"), animate));
+  else jobs.push(boxSwap.then(() => settleButtons(m, animate)));
+  if (showRes.ctResults) jobs.push(boxSwap.then(() => fadeShow($("ctResults"), animate)));   // link box aane ke baad hi result dikhe
   log.info("Mode:", m);
   return Promise.all(jobs);
 }
-
 $("modeBtn").onclick = () => {
   if (running || switching) return;
   switching = true;
@@ -355,22 +426,43 @@ $("modeBtn").onclick = () => {
   if (b.animate && !reduceMotion()) {
     b.animate([{ transform: "scale(1)" }, { transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 260, easing: EASE });
   }
-  applyMode(mode === "tags" ? "hook" : "tags", true).then(() => { switching = false; });
+  applyMode(mode === "hook" ? "tags" : "hook", true).then(() => { switching = false; });
 };
-
 /* ---------- File selection ---------- */
 let chosen = null;
 function showError(m) { $("errBox").textContent = m; $("errBox").classList.remove("hidden"); }
 function hideError() { $("errBox").classList.add("hidden"); }
 
 /* Button states: idle (none) | ready (Analyze + Upload another) | running (none) | done (Upload another only) */
+let uiState = "idle", uiTok = 0;
 function setUI(state) {
+  uiState = state;
+  uiTok++;                                               // purani animation ko rok do
   $("btnRow").classList.toggle("hidden", state === "idle" || state === "running");
   $("go").classList.toggle("hidden", state !== "ready");
   $("again").classList.toggle("hidden", state !== "ready" && state !== "done");
   $("modeBtn").disabled = state === "running";
+  $("ctBtn").disabled = state === "running";
 }
 setUI("idle");
+/* Buttons ko animation ke saath dikhao / chhupao (pehle purane hatao, phir naye laao) */
+function setUIAnimated(state) {
+  uiState = state;
+  const tok = ++uiTok;
+  $("modeBtn").disabled = state === "running";
+  $("ctBtn").disabled = state === "running";
+  const items = [
+    [$("btnRow"), !(state === "idle" || state === "running")],
+    [$("go"), state === "ready"],
+    [$("again"), state === "ready" || state === "done"]
+  ];
+  const hide = items.filter(([, on]) => !on).map(([el]) => fadeHide(el, true));
+  return Promise.all(hide).then(() => {
+    if (tok !== uiTok) return;                           // beech me state badal gayi
+    updateGoLabel();                                     // button chhupa hai, ab label badlo, phir dikhao
+    return Promise.all(items.filter(([, on]) => on).map(([el]) => fadeShow(el, true)));
+  });
+}
 $("again").onclick = () => { $("file").value = ""; $("file").click(); };
 
 function setFile(f) {
@@ -383,12 +475,15 @@ function setFile(f) {
   $("fname").textContent = `${f.name} (${(f.size / 1048576).toFixed(1)} MB)`;
   $("preview").innerHTML = "";
   const v = document.createElement("video");
+  v.preload = "auto"; v.playsInline = true;
+  v.addEventListener("loadedmetadata", () => { try { v.currentTime = 0.001; } catch (_) {} });   // pehla frame turant dikhe
   v.src = URL.createObjectURL(f);
   v.controls = true;
   $("preview").appendChild(v);
   $("results").classList.add("hidden");
   $("hookResults").classList.add("hidden");
-  setUI("ready");
+  modeDone.tags = false; modeDone.hook = false;          // naya video: purane results hata do
+    previewReady(500).then(() => { if (chosen === f && !running) setUIAnimated("ready"); });
   $("dropEmpty").classList.add("hidden");
   log.info("Video selected:", f.name, f.type, f.size + " bytes");
   tutOn("selected");
@@ -398,6 +493,146 @@ $("file").onchange = (e) => setFile(e.target.files[0]);
 ["dragover", "dragenter"].forEach(ev => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
 ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
 $("drop").addEventListener("drop", (e) => setFile(e.dataTransfer.files[0]));
+
+/* ---------- Tag Finder (YouTube Data API via Worker, no coins) ---------- */
+let ctMode = false, ctLastId = null, ctBusy = false, ctTok = 0, ctDone = false;
+const ctYtThumb = (id) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const ctWhen = (iso) => {                                // exact upload date and time
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+};
+const ctDay = (iso) => {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
+const ctStatList = (v) => [
+  ["Views / day", v.viewsPerDay], ["Viral score", v.viral], ["Type", v.kind], ["Duration", v.duration]
+].filter(([, x]) => x);
+const ctMoreList = (v, ch) => [
+  ["Category", v.category], ["Topics", (v.topics || []).join(", ")], ["Quality", v.hd],
+  ["Captions", v.captions], ["Made for kids", v.kids], ["Language", v.lang],
+  ["Subscribers", ch.subs], ["Channel created", ch.created ? ctDay(ch.created) : ""],
+  ["Channel videos", ch.videos], ["Channel total views", ch.totalViews], ["Channel country", ch.country]
+].filter(([, x]) => x);
+
+$("ctBtn").onclick = () => {
+  if (running || switching) return;
+  switching = true;
+  applyMode(mode === "ct" ? "tags" : "ct", true).then(() => { switching = false; });
+};
+
+function ytIdFromUrl(u) {
+  const s = String(u || "").trim();
+  const m = s.match(/(?:youtu\.be\/|v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : null;
+}
+
+/* Button: blocked while fetching, and blocked after a fetch until a DIFFERENT link is pasted */
+function ctSetBtn() {
+  const id = ytIdFromUrl($("ctUrl").value);
+  const same = !!id && id === ctLastId;
+  const b = $("ctGo");
+  b.disabled = ctBusy || same;
+  b.textContent = ctBusy ? "Fetching…" : same ? "Fetched ✓" : "Get details";
+}
+function ctReset() { ctTok++; ctLastId = null; ctBusy = false; ctSetBtn(); }
+$("ctUrl").addEventListener("input", ctSetBtn);
+$("ctUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("ctGo").click(); } });
+
+function ctShowLoading(id) {                             // thumbnail shows instantly, text is shimmer
+  const img = $("ctThumbImg");
+  img.classList.remove("bad");
+  img.onerror = () => img.classList.add("bad");
+  img.src = ctYtThumb(id);
+  $("ctThumb").href = "https://www.youtube.com/watch?v=" + id;
+  $("ctVideo").classList.add("loading");
+  ["ctVTitle", "ctChan", "ctWhen"].forEach(k => { $(k).textContent = ""; });
+    $("ctStats").innerHTML = '<div class="ct-stat ct-sk"></div>'.repeat(4);
+  $("ctDl").disabled = true; ctThumbUrl = "";
+  $("ctBody").classList.add("hidden");
+  $("ctResults").classList.remove("hidden");
+}
+
+$("ctGo").onclick = async () => {
+  if (ctBusy) return;
+  if (!currentUser) { $("loginModal").classList.remove("hidden"); $("modalOk").focus(); return; }
+  const id = ytIdFromUrl($("ctUrl").value);
+  if (!id) return showError("Please paste a valid YouTube video link.");
+  if (id === ctLastId) return;
+  hideError();
+  const tok = ++ctTok;
+    ctLastId = null; ctDone = false; ctBusy = true; ctSetBtn();
+  ctShowLoading(id);
+  try {
+    const d = await api("yt", { id });
+    if (tok !== ctTok) return;
+    renderCT(d);
+    ctLastId = id;
+  } catch (e) {
+    if (tok !== ctTok) return;
+    log.error("YT fetch:", e);
+    ctDone = false;
+    $("ctResults").classList.add("hidden");
+    showError(e.safe ? e.message : "Couldn't fetch this video. Please try again.");
+  } finally {
+    if (tok === ctTok) { ctBusy = false; ctSetBtn(); }
+  }
+};
+let ctThumbUrl = "";
+$("ctDl").onclick = async () => {                        // thumbnail download (agar browser rokta hai to nayi tab mein khulti hai)
+  if (!ctThumbUrl) return;
+  try {
+    const r = await fetch(ctThumbUrl);
+    if (!r.ok) throw new Error("x");
+    const blob = await r.blob(), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "thumbnail.jpg";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (_) {
+    window.open(ctThumbUrl, "_blank", "noopener");
+    toast("Image opened. Long-press or right-click to save.");
+  }
+};
+
+function renderCT(d) {
+  const v = d.video || {}, ch = d.channel || {};
+  $("ctVideo").classList.remove("loading");
+  $("ctVTitle").textContent = v.title || "";
+  $("ctChan").textContent = ch.title || "";
+  const w = ctWhen(v.publishedAt);
+  $("ctWhen").textContent = [v.views && v.views + " views", w && "Uploaded " + w].filter(Boolean).join(" · ");
+
+  const st = $("ctStats"); st.innerHTML = "";
+  ctStatList(v).forEach(([k, val]) => {
+    const t = document.createElement("div"); t.className = "ct-stat";
+    const b = document.createElement("b"); b.textContent = val;
+    const s = document.createElement("span"); s.textContent = k;
+    t.append(b, s); st.appendChild(t);
+  });
+
+  ctThumbUrl = v.thumb || "";
+  $("ctDl").disabled = !ctThumbUrl;
+
+  const info = $("ctInfo"); info.innerHTML = "";
+  ctMoreList(v, ch).forEach(([k, val]) => {
+    const li = document.createElement("li");
+    const s = document.createElement("span"); s.textContent = k;
+    const b = document.createElement("b"); b.textContent = val;
+    li.append(s, b); info.appendChild(li);
+  });
+
+  const tags = v.tags || [];
+  $("ctTags").value = tags.join(", ");
+  renderChips($("ctTagChips"), tags);
+  $("ctTagInfo").textContent = tags.length ? tags.length + " tags, " + tags.join(", ").length + " characters" : "no tags on this video";
+
+  const desc = v.description || "";
+  $("ctDesc").value = desc;
+  $("ctDescInfo").textContent = desc.length + " chars";
+  $("ctBody").classList.remove("hidden");
+  ctDone = true;                                         // result ab mode badalne par bhi yaad rahega
+}
 
 /* ---------- First 10 seconds only (Suggestion mode) ----------
    The browser plays the first 10 seconds and records them (video + sound) into a small file.
@@ -496,23 +731,67 @@ async function clipStart(file, secs) {
 /* ---------- Gemini (via Cloudflare Worker) ---------- */
 const CHUNK = 16 * 1024 * 1024;   // 8 MB ka multiple hona zaroori hai (Worker bhi yahi maanta hai)
 
-async function analyzeWithGemini(file, m = "tags") {
-  log.info("Requesting upload...");
-  const { uploadId } = await api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4", mode: m });
+/* Attempt note: "Second attempt…" / "Third attempt…" (pehli baar kuch nahi dikhta) */
+function tryNote(a) {
+  let el = $("tryNote");
+  if (!el) {
+    el = document.createElement("p");
+    el.id = "tryNote"; el.className = "try-note hidden";
+    document.querySelector("#skel .loader-card").appendChild(el);
+  }
+  if (a > 1) { el.textContent = (a === 2 ? "Second" : "Third") + " attempt…"; el.classList.remove("hidden"); }
+  else el.classList.add("hidden");
+}
+/* Retry sirf Gemini wale steps (upload start, chunk) par aur sirf jab Worker ne 502 diya.
+   Internet band, coins khatam, file badi: retry nahi. Har step ko max 3 koshish. */
+const canRetry = (e) => !!e && !e.offline && !e.safe && e.status === 502 && (e.stage === "start" || e.stage === "chunk");
 
-  log.info("Uploading video in chunks...");
-  let fileName = null;
-  for (let offset = 0; offset < file.size; offset += CHUNK) {
-    const end = Math.min(offset + CHUNK, file.size);
-    const last = end >= file.size;
-    const token = await currentUser.getIdToken();
-    const res = await fetch(`${API_URL}?action=chunk&id=${encodeURIComponent(uploadId)}&offset=${offset}`, {
+async function withTries(step) {
+  for (let a = 1; ; a++) {
+    if (!navigator.onLine) throw netErr();               // data band hai to koshish hi mat karo
+    tryNote(a);                                          // 1 = kuch nahi, 2 = "Second attempt…", 3 = "Third attempt…"
+    try {
+      const r = await step();
+      tryNote(1);
+      return r;
+    } catch (e) {
+      log.warn("Attempt " + a + " failed:", e && e.message);
+      if (a >= 3 || !canRetry(e)) { tryNote(1); throw e; }
+      await sleep(1200 * a);
+    }
+  }
+}
+
+async function sendChunk(uploadId, file, offset, end) {
+  let token, res;
+  try { token = await currentUser.getIdToken(); }
+  catch (e) { throw isNetFail(e) ? netErr() : e; }
+  try {
+    res = await fetch(`${API_URL}?action=chunk&id=${encodeURIComponent(uploadId)}&offset=${offset}`, {
       method: "POST",
       headers: { "Authorization": "Bearer " + token, "Content-Type": "application/octet-stream" },
       body: file.slice(offset, end)
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { const e = new Error(data.error || "Upload failed " + res.status); e.safe = res.status >= 400 && res.status < 500; throw e; }
+  } catch (e) { throw netErr(); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.error || "Upload failed " + res.status);
+    e.safe = res.status >= 400 && res.status < 500;
+    e.status = res.status; e.stage = "chunk";
+    throw e;
+  }
+  return data;
+}
+
+async function analyzeWithGemini(file, m = "tags") {
+  log.info("Requesting upload...");
+  const { uploadId } = await withTries(() => api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4", mode: m }));
+
+  log.info("Uploading video in chunks...");
+  let fileName = null;
+  for (let offset = 0; offset < file.size; offset += CHUNK) {
+    const end = Math.min(offset + CHUNK, file.size), last = end >= file.size;
+    const data = await withTries(() => sendChunk(uploadId, file, offset, end));
     if (last) fileName = data.file;
     log.info(`Uploaded ${Math.round(end / file.size * 100)}%`);
   }
@@ -743,7 +1022,8 @@ $("go").onclick = async () => {
   }
 
   running = false;
-  setUI(ai.error ? "ready" : "done");
+    if (!ai.error) modeDone[m] = true;                     // is mode ka result ab yaad rahega
+    setUIAnimated(ai.error ? "ready" : "done");
 };
 
 async function sendThumb(hid, blob) {                   // preview image for History; Worker validates it
@@ -843,6 +1123,7 @@ function startSkeleton(m = "tags") {
   }
 }
 function stopSkeleton() {
+  if (typeof tryNote === "function") tryNote(0);
   clearInterval(stepTimer); clearTimeout(stepTimer);
   capToken++;
   $("skel").classList.add("hidden");
@@ -1039,16 +1320,28 @@ function histWatch() {
 }
 
 /* Card ka andar ka heavy part (textareas, chips) sirf pehli baar kholne par banta hai */
+const ctHistDetails = (it) => [
+  ["Title", it.title], ["Channel", it.channel], ["Subscribers", it.subs],
+  ["Uploaded", ctWhen(it.publishedAt)], ["Views", it.views], ["Views / day", it.viewsPerDay],
+  ["Viral score", it.viral], ["Type", it.kind], ["Duration", it.duration],
+  ["Category", it.category], ["Topics", (it.topics || []).join(", ")], ["Quality", it.hd],
+  ["Captions", it.captions], ["Made for kids", it.kids], ["Language", it.lang],
+  ["Channel created", it.chCreated ? ctDay(it.chCreated) : ""], ["Channel videos", it.chVideos],
+  ["Channel total views", it.chTotalViews], ["Channel country", it.country]
+].filter(([, x]) => x).map(([k, x]) => k + ": " + x).join("\n");
 function buildHistBody(it, body, art) {
-  const sections = it.type === "hook"
+    const sections = (it.type === "ct"
+    ? [["Video details", ctHistDetails(it)], ["Tags", (it.tags || []).join(", ")], ["Description", it.description || ""]]
+    : it.type === "hook"
     ? [["Score", (it.score || 0) + "/100" + (it.verdict ? "\n" + it.verdict : "")],
        ["Current hook", it.currentHook || "No clear hook found."],
        ["What works", (it.strengths || []).join("\n")],
        ["What to fix", (it.weaknesses || []).join("\n")],
        ["Stronger hook lines", (it.hooks || []).map((h) => h.text + (h.roman ? " (" + h.roman + ")" : "")).join("\n")],
-       ["Tips", (it.tips || []).join("\n")]].filter(([, text]) => text)
+       ["Tips", (it.tips || []).join("\n")]]
     : [["Tags", (it.tags || []).join(", ")], ["Hashtags", (it.hashtags || []).join(" ")],
-       ["Keywords", (it.keywords || []).join(", ")], ["Titles", (it.titles || []).join("\n")]];
+       ["Keywords", (it.keywords || []).join(", ")], ["Titles", (it.titles || []).join("\n")]]
+  ).filter(([, text]) => text);
   sections.forEach(([label, text]) => {
     const box = document.createElement("div"); box.className = "box";
     box.innerHTML = '<header><h3></h3><button class="btn sm ghost">Copy</button></header><textarea readonly></textarea>';
@@ -1086,7 +1379,9 @@ function histCard(it, now) {
   const meta = document.createElement("span"); meta.className = "hc-meta";
   const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
   const b = document.createElement("b");
-b.textContent = it.type === "hook" ? "Hook check \u00B7 " + (it.score || 0) + "/100" : (it.titles && it.titles[0]) || it.fileName || "Video";
+b.textContent = it.type === "hook" ? "Hook check \u00B7 " + (it.score || 0) + "/100"
+  : it.type === "ct" ? "Tag Finder \u00B7 " + (it.title || "Video")
+  : (it.titles && it.titles[0]) || it.fileName || "Video";
   const sp = document.createElement("span");
   sp.textContent = new Date(it.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + " · Deletes in " + days + (days === 1 ? " day" : " days");
   meta.append(b, sp);
@@ -1230,7 +1525,7 @@ themeBtn.onclick = () => applyTheme(curTheme() === "dark" ? "light" : "dark", tr
 applyTheme(curTheme(), false);
 
 /* ---------- "What's new" pill (sirf logged-in users, ek baar) ---------- */
-const WN_KEY = "trendly_whatsnew_v3";
+const WN_KEY = "trendly_whatsnew_v4";
 function updateWnew() {
   let seen = false;
   try { seen = !!localStorage.getItem(WN_KEY); } catch (_) {}
@@ -1251,5 +1546,7 @@ firebase.database().ref("notice").on("value", (s) => {
 }, (e) => log.warn("Notice listener:", e));
 
 /* ---------- Start state ---------- */
-applyMode("tags");
+let startMode = "tags";
+try { const sm = localStorage.getItem("trendly_mode"); if (sm === "hook" || sm === "ct") startMode = sm; } catch (_) {}
+applyMode(startMode);                                    // pichli baar jo mode tha wahi khulega
 renderCoins();
