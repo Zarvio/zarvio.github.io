@@ -290,19 +290,19 @@ let mode = "tags";
 const MODES = {
   tags: {
     title: "What video are we optimizing today?",
-    sub: "Get tags, hashtags, keywords and titles for YouTube.",
+    sub: "Tags, hashtags and titles for YouTube",
     drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
     go: "Analyze video", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
   },
   hook: {
     title: "How strong is your video's hook?",
-    sub: "Score your hook and get stronger opening lines.",
+    sub: "Score your hook and get stronger lines",
     drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
     go: "Check my hook", toggle: "Tags & Hashtags", icon: '<i class="fa-solid fa-hashtag"></i>'
   },
     ct: {
     title: "Find the tags of any YouTube video",
-    sub: "Paste a link to see its tags and description.",
+    sub: "Paste a link to see its tags and description",
     drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
     go: "Get details", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
   }
@@ -343,7 +343,7 @@ function fadeHide(el, animate) {
 const modeDone = { tags: false, hook: false };            // kis mode ka result ban chuka hai
 const CT_BTN = {
   on:  { lbl: "Tags & Hashtags", ic: '<i class="fa-solid fa-hashtag"></i>' },
-  off: { lbl: "Tag Finder", ic: '<i class="fa-solid fa-magnifying-glass"></i>' }
+    off: { lbl: "Competitor", ic: '<i class="fa-solid fa-chart-line"></i>' }
 };
 
 function fadeShow(el, animate) {
@@ -384,8 +384,8 @@ function applyMode(m, animate = false) {
     mode = m;
    try { localStorage.setItem("trendly_mode", m); } catch (_) {}   // user ka aakhri mode yaad rahe
   ctMode = m === "ct";
-  if (ctMode) ctSetBtn();                                // wapas aane par button "Fetched ✓" hi dikhe
-  const t = MODES[m], cb = ctMode ? CT_BTN.on : CT_BTN.off;
+  if (ctMode) ctShowSub();              // wapas aane par button "Fetched ✓" hi dikhe
+  const t = m === "ct" ? { ...MODES.ct, title: CT_SUB[ctSub].title, sub: CT_SUB[ctSub].sub } : MODES[m], cb = ctMode ? CT_BTN.on : CT_BTN.off;
   $("modeBtn").classList.toggle("is-hook", m === "hook");
   $("ctBtn").classList.toggle("is-hook", ctMode);
   hideError();
@@ -495,7 +495,7 @@ $("file").onchange = (e) => setFile(e.target.files[0]);
 $("drop").addEventListener("drop", (e) => setFile(e.dataTransfer.files[0]));
 
 /* ---------- Tag Finder (YouTube Data API via Worker, no coins) ---------- */
-let ctMode = false, ctLastId = null, ctBusy = false, ctTok = 0, ctDone = false;
+let ctMode = false, ctLastId = null, ctBusy = false, ctTok = 0, ctDone = false, ctSub = "";
 const ctYtThumb = (id) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 const ctWhen = (iso) => {                                // exact upload date and time
   const d = new Date(iso);
@@ -528,18 +528,88 @@ function ytIdFromUrl(u) {
   return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : null;
 }
 
-/* Button: blocked while fetching, and blocked after a fetch until a DIFFERENT link is pasted */
-function ctSetBtn() {
-  const id = ytIdFromUrl($("ctUrl").value);
-  const same = !!id && id === ctLastId;
-  const b = $("ctGo");
-  b.disabled = ctBusy || same;
-  b.textContent = ctBusy ? "Fetching…" : same ? "Fetched ✓" : "Get details";
-}
-function ctReset() { ctTok++; ctLastId = null; ctBusy = false; ctSetBtn(); }
-$("ctUrl").addEventListener("input", ctSetBtn);
-$("ctUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("ctGo").click(); } });
+/* ---- Competitor box: ctSub = "" (compare 2 videos) | "tags" (Tag Finder) | "plan" (Channel Planner) ---- */
+const CT_SUB = {
+  "":   { title: "Compare your video with a competitor", sub: "Find the tags your competitor is using", btn: "Compare tags", p1: "Your video link", two: true },
+  tags: { title: "Find the tags of any YouTube video", sub: "Paste a link to see its tags and stats", btn: "Get details", p1: "https://youtube.com/watch?v=…", two: false },
+  plan: { title: "Plan the best days to upload videos", sub: "Find the best day to upload your video", btn: "Plan my uploads", p1: "Channel link or @handle", two: false }
+};
 
+function chanFromUrl(u) {                                // channel link / @handle / UC... id
+  const s = String(u || "").trim();
+  if (!s || s.length > 200) return null;
+  const ok = /^@[\w.-]{3,}$/.test(s) || /^UC[\w-]{22}$/.test(s) || /youtube\.com\/(@|channel\/|c\/|user\/)/i.test(s);
+  return ok ? s : null;
+}
+/* Is waqt inputs se ek "key" banti hai. Wahi key dobara ho to button "Fetched ✓" rehta hai. */
+function ctKey() {
+  const a = $("ctUrl").value;
+  if (ctSub === "") { const x = ytIdFromUrl(a), y = ytIdFromUrl($("ctUrl2").value); return x && y ? x + "|" + y : null; }
+  if (ctSub === "tags") return ytIdFromUrl(a);
+  return chanFromUrl(a);
+}
+/* Har tab ke apne links aur apna result yaad rakho */
+const ctVals = { "": { u1: "", u2: "" }, tags: { u1: "", u2: "" }, plan: { u1: "", u2: "" } };
+const ctS = { "": { last: null, done: false }, tags: { last: null, done: false }, plan: { last: null, done: false } };
+function ctSave() {
+  ctVals[ctSub] = { u1: $("ctUrl").value, u2: $("ctUrl2").value };
+  try { localStorage.setItem("trendly_ct", JSON.stringify({ sub: ctSub, vals: ctVals })); } catch (_) {}
+}
+function ctShowPanels(sub) {                             // sirf is tab ka result dikhe (agar bana hua hai)
+  $("ctResults").classList.toggle("hidden", !ctDone);
+  $("ctVideo").classList.toggle("hidden", sub !== "tags");
+  $("ctBody").classList.toggle("hidden", sub !== "tags");
+  $("cmpBody").classList.toggle("hidden", sub !== "");
+  $("planBody").classList.toggle("hidden", sub !== "plan");
+}
+function ctSetBtn() {
+  const key = ctKey(), same = !!key && key === ctLastId, b = $("ctGo");
+ ctSave();
+  b.disabled = ctBusy || same;
+  b.textContent = ctBusy ? "Fetching…" : same ? "Fetched ✓" : CT_SUB[ctSub].btn;
+}
+function ctShowSub() {                                   // tab highlight + 1 ya 2 input box
+  const c = CT_SUB[ctSub];
+    $("ctUrl").value = ctVals[ctSub].u1;
+  $("ctUrl2").value = ctVals[ctSub].u2;
+  document.querySelectorAll("#ctTabs .ct-tab").forEach(b => b.classList.toggle("on", b.dataset.sub === ctSub));
+  $("ctUrl").placeholder = c.p1;
+  $("ctUrl").setAttribute("aria-label", c.p1);
+  $("ctUrl2").classList.toggle("hidden", !c.two);
+  ctSetBtn();
+}
+function ctClear() {                                     // tab badla: purana result hata do
+  ctTok++; ctLastId = null; ctBusy = false; ctDone = false;
+  $("ctResults").classList.add("hidden");
+  hideError();
+}
+$("ctTabs").onclick = (e) => {
+  const b = e.target.closest(".ct-tab");
+  if (!b || ctBusy) return;
+  ctSave();                                              // purane tab ke links
+  ctS[ctSub] = { last: ctLastId, done: ctDone };         // purane tab ka result yaad
+  ctSub = ctSub === b.dataset.sub ? "" : b.dataset.sub;  // same tab dobara = band, compare wapas
+  ctLastId = ctS[ctSub].last; ctDone = ctS[ctSub].done;  // naye tab ka result wapas
+  hideError();
+  document.querySelectorAll("#ctTabs .ct-tab").forEach(t => t.classList.toggle("on", t.dataset.sub === ctSub));
+  if (b.animate && !reduceMotion()) {
+    b.animate(
+      [{ transform: "scale(1)" }, { transform: "scale(.9)" }, { transform: "scale(1.07)" }, { transform: "scale(1)" }],
+      { duration: 340, easing: EASE });
+  }
+  fadeSwap(document.querySelector("#ctInput .ct-row"), () => { ctShowSub(); ctShowPanels(ctSub); }, 0);
+  fadeSwap($("heroTitle"), () => { $("heroTitle").textContent = CT_SUB[ctSub].title; }, 0);
+  fadeSwap($("heroSub"), () => { $("heroSub").textContent = CT_SUB[ctSub].sub; }, 60);
+};
+["ctUrl", "ctUrl2"].forEach((id) => {
+  $(id).addEventListener("input", ctSetBtn);
+  $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("ctGo").click(); } });
+});
+
+function ctPanels(sub) {                                 // sirf us tab ka result dikhe
+  $("ctVideo").classList.toggle("hidden", sub !== "tags");
+  ["ctBody", "cmpBody", "planBody"].forEach(id => $(id).classList.add("hidden"));
+}
 function ctShowLoading(id) {                             // thumbnail shows instantly, text is shimmer
   const img = $("ctThumbImg");
   img.classList.remove("bad");
@@ -548,7 +618,7 @@ function ctShowLoading(id) {                             // thumbnail shows inst
   $("ctThumb").href = "https://www.youtube.com/watch?v=" + id;
   $("ctVideo").classList.add("loading");
   ["ctVTitle", "ctChan", "ctWhen"].forEach(k => { $(k).textContent = ""; });
-    $("ctStats").innerHTML = '<div class="ct-stat ct-sk"></div>'.repeat(4);
+  $("ctStats").innerHTML = '<div class="ct-stat ct-sk"></div>'.repeat(4);
   $("ctDl").disabled = true; ctThumbUrl = "";
   $("ctBody").classList.add("hidden");
   $("ctResults").classList.remove("hidden");
@@ -557,28 +627,92 @@ function ctShowLoading(id) {                             // thumbnail shows inst
 $("ctGo").onclick = async () => {
   if (ctBusy) return;
   if (!currentUser) { $("loginModal").classList.remove("hidden"); $("modalOk").focus(); return; }
-  const id = ytIdFromUrl($("ctUrl").value);
-  if (!id) return showError("Please paste a valid YouTube video link.");
-  if (id === ctLastId) return;
+  const sub = ctSub, key = ctKey();
+  if (!key) return showError(sub === "" ? "Please paste both YouTube video links." : sub === "tags" ? "Please paste a valid YouTube video link." : "Please paste a valid YouTube channel link or @handle.");
+  if (key === ctLastId) return;
+  if (sub === "" && key.split("|")[0] === key.split("|")[1]) return showError("Both links are the same video. Paste your competitor's video in the second box.");
   hideError();
   const tok = ++ctTok;
-    ctLastId = null; ctDone = false; ctBusy = true; ctSetBtn();
-  ctShowLoading(id);
+  ctLastId = null; ctDone = false; ctBusy = true; ctSetBtn();
+  ctPanels(sub);
+  if (sub === "tags") ctShowLoading(key); else $("ctResults").classList.add("hidden");
   try {
-    const d = await api("yt", { id });
-    if (tok !== ctTok) return;
-    renderCT(d);
-    ctLastId = id;
+    if (sub === "tags") {
+      const d = await api("yt", { id: key });
+      if (tok !== ctTok) return;
+      renderCT(d);
+    } else if (sub === "") {
+      const [a, b] = key.split("|");
+      const d = await api("cmp", { a, b });
+      if (tok !== ctTok) return;
+      renderCmp(d);
+    } else {
+      const d = await api("plan", { q: key });
+      if (tok !== ctTok) return;
+      renderPlan(d);
+    }
+    ctLastId = key;
   } catch (e) {
     if (tok !== ctTok) return;
-    log.error("YT fetch:", e);
+    log.error("CT fetch:", e);
     ctDone = false;
     $("ctResults").classList.add("hidden");
-    showError(e.safe ? e.message : "Couldn't fetch this video. Please try again.");
+    showError(e.safe ? e.message : "Couldn't fetch this. Please try again.");
   } finally {
     if (tok === ctTok) { ctBusy = false; ctSetBtn(); }
   }
 };
+
+/* ---- Competitor compare result ---- */
+const lc = (t) => String(t).trim().toLowerCase();
+function renderCmp(d) {
+  const you = d.you || {}, rv = d.rival || {}, yt = you.tags || [], rt = rv.tags || [];
+  const ys = new Set(yt.map(lc)), rs = new Set(rt.map(lc));
+  const missing = rt.filter(t => !ys.has(lc(t)));
+  const common = rt.filter(t => ys.has(lc(t)));
+  const mine = yt.filter(t => !rs.has(lc(t)));
+
+  $("cmpMsg").textContent = !rt.length ? "Your competitor's video has no public tags."
+    : missing.length ? `Your competitor has ${missing.length} tag${missing.length === 1 ? "" : "s"} that you don't have.`
+    : "You already use every tag your competitor uses.";
+  $("cmpSub").textContent = `You: ${you.title || "your video"} (${yt.length} tags) · Competitor: ${rv.title || "competitor video"} (${rt.length} tags)`;
+
+  $("cmpMiss").value = missing.join(", ");
+  $("cmpMissInfo").textContent = missing.length + " tags";
+  renderChips($("cmpMissChips"), missing);
+  renderChips($("cmpCommonChips"), common);
+  renderChips($("cmpMineChips"), mine);
+  $("cmpMissBox").classList.toggle("hidden", !missing.length);
+  $("cmpCommonBox").classList.toggle("hidden", !common.length);
+  $("cmpMineBox").classList.toggle("hidden", !mine.length);
+
+  $("cmpBody").classList.remove("hidden");
+  $("ctResults").classList.remove("hidden");
+  ctDone = true;
+}
+
+/* ---- Channel Planner result ---- */
+function renderPlan(d) {
+  const ch = d.channel || {}, days = d.days || [], top = d.topUploadDay, best = d.bestDay;
+  $("planInfo").textContent = d.count ? `${ch.title || "Channel"} · last ${d.count} videos` : "";
+  $("planMsg").textContent = !d.count ? "No public videos found on this channel."
+    : top && best && top !== best ? `You mostly upload on ${top}, but your ${best} videos get the most views.`
+    : top ? `You mostly upload on ${top}, and those videos also do best. Keep it up!`
+    : "Not enough data to find a pattern yet.";
+  $("planTip").textContent = d.count && best ? `Try posting your next video on ${best}` + (d.hour ? ` around ${d.hour}.` : ".") : "";
+  const ul = $("planDays"); ul.innerHTML = "";
+  days.forEach((x) => {
+    const li = document.createElement("li");
+    if (x.full === best) li.className = "best";
+    const s = document.createElement("span"); s.textContent = x.full;
+    const b = document.createElement("b");
+    b.textContent = `${x.count} video${x.count === 1 ? "" : "s"} · avg ${x.avg || "0"} views` + (x.full === best ? " · best day" : "") + (x.full === top ? " · most uploads" : "");
+    li.append(s, b); ul.appendChild(li);
+  });
+  $("planBody").classList.remove("hidden");
+  $("ctResults").classList.remove("hidden");
+  ctDone = true;
+}
 let ctThumbUrl = "";
 $("ctDl").onclick = async () => {                        // thumbnail download (agar browser rokta hai to nayi tab mein khulti hai)
   if (!ctThumbUrl) return;
@@ -1208,7 +1342,20 @@ async function sweepHistory(uid) {
 
 /* ---- Lazy loading: pehle 4, phir scroll karne par agle 4 (skeleton ke saath) ---- */
 const HIST_PAGE = 4;
-const H = { token: 0, loading: false, more: false, cursor: null, obs: null, sentinel: null };
+const H = { token: 0, filter: "tags", loading: false, more: false, cursor: null, obs: null, sentinel: null };
+/* History filter: All | Tags (purane items mein type nahi hota) | Suggestion | Tag Finder */
+const histMatch = (it) => H.filter === "tags" ? !it.type : it.type === H.filter;
+const HIST_EMPTY = {
+  tags: "No Analyze history yet. Analyze a video and it will appear here.",
+  hook: "No Suggestion history yet.", ct: "No Tag Finder history yet.", cmp: "No Competitor history yet."
+};
+$("hFilter").onclick = (e) => {
+  const b = e.target.closest("button");
+  if (!b || b.dataset.f === H.filter) return;
+  H.filter = b.dataset.f;
+  document.querySelectorAll("#hFilter button").forEach(x => x.classList.toggle("on", x === b));
+  loadHistory();
+};
 
 function histStop() {                                   // history se bahar jaate hi sab band
   H.token++; H.loading = false; H.more = false; H.cursor = null;
@@ -1264,20 +1411,25 @@ async function histLoadMore(first) {
   skels.forEach(s => list.insertBefore(s, H.sentinel));
 
   try {
-    const { page, extra } = await histFetch(currentUser.uid, H.cursor);
-    if (token !== H.token) return;                      // user history se chala gaya / reload hua
+    const now = Date.now(), shown = [];
+    let cur = H.cursor;
+    do {                                                // filter ke baad kam mile to agla page bhi laao
+      const r = await histFetch(currentUser.uid, cur);
+      if (token !== H.token) return;
+      cur = r.extra ? { createdAt: r.extra.createdAt, id: r.extra.id } : null;
+      r.page.forEach(it => { if ((it.expiresAt || 0) > now && histMatch(it)) shown.push(it); });
+    } while (cur && shown.length < HIST_PAGE);
+
     skels.forEach(s => s.remove());
-    const now = Date.now();
-    const shown = page.filter(it => (it.expiresAt || 0) > now);
     shown.forEach((it, i) => {
       const c = histCard(it, now);
       c.style.animationDelay = i * 40 + "ms";
       list.insertBefore(c, H.sentinel);
     });
-    H.cursor = extra ? { createdAt: extra.createdAt, id: extra.id } : null;
-    H.more = !!extra;
+    H.cursor = cur;
+    H.more = !!cur;
     if (first && !shown.length && !H.more) {
-      list.insertBefore(histMsg("No history yet. Analyze a video and it will appear here."), H.sentinel);
+      list.insertBefore(histMsg(HIST_EMPTY[H.filter]), H.sentinel);
     }
     log.info(`History: ${shown.length} loaded, more =`, H.more);
   } catch (e) {
@@ -1290,7 +1442,7 @@ async function histLoadMore(first) {
     rb.onclick = () => { m.remove(); H.more = true; histLoadMore(first); };
     m.appendChild(rb);
     list.insertBefore(m, H.sentinel);
-    H.more = false;                                     // retry button se hi dobara chalega
+    H.more = false;
   } finally {
     if (token === H.token) {
       H.loading = false;
@@ -1298,7 +1450,6 @@ async function histLoadMore(first) {
     }
   }
 }
-
 function histMsg(text) {
   const d = document.createElement("div");
   d.className = "empty";
@@ -1332,6 +1483,11 @@ const ctHistDetails = (it) => [
 function buildHistBody(it, body, art) {
     const sections = (it.type === "ct"
     ? [["Video details", ctHistDetails(it)], ["Tags", (it.tags || []).join(", ")], ["Description", it.description || ""]]
+        : it.type === "cmp"
+    ? [["Videos", "You: " + (it.title || "") + "\nCompetitor: " + (it.rivalTitle || "")],
+       ["Tags you are missing", (it.missing || []).join(", ")],
+       ["Tags you both use", (it.common || []).join(", ")],
+       ["Only you use these", (it.mine || []).join(", ")]]
     : it.type === "hook"
     ? [["Score", (it.score || 0) + "/100" + (it.verdict ? "\n" + it.verdict : "")],
        ["Current hook", it.currentHook || "No clear hook found."],
@@ -1380,6 +1536,7 @@ function histCard(it, now) {
   const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
   const b = document.createElement("b");
 b.textContent = it.type === "hook" ? "Hook check \u00B7 " + (it.score || 0) + "/100"
+  : it.type === "cmp" ? "Competitor \u00B7 " + (it.title || "Video")
   : it.type === "ct" ? "Tag Finder \u00B7 " + (it.title || "Video")
   : (it.titles && it.titles[0]) || it.fileName || "Video";
   const sp = document.createElement("span");
@@ -1546,6 +1703,13 @@ firebase.database().ref("notice").on("value", (s) => {
 }, (e) => log.warn("Notice listener:", e));
 
 /* ---------- Start state ---------- */
+/* Competitor box ka purana state wapas lagao (applyMode se pehle) */
+try {
+  const c = JSON.parse(localStorage.getItem("trendly_ct") || "{}");
+  if (c.sub === "tags" || c.sub === "plan") ctSub = c.sub;
+  $("ctUrl").value = String(c.u1 || "").slice(0, 300);
+  $("ctUrl2").value = String(c.u2 || "").slice(0, 300);
+} catch (_) {}
 let startMode = "tags";
 try { const sm = localStorage.getItem("trendly_mode"); if (sm === "hook" || sm === "ct") startMode = sm; } catch (_) {}
 applyMode(startMode);                                    // pichli baar jo mode tha wahi khulega

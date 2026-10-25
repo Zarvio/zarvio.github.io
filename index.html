@@ -63,7 +63,7 @@
     </button>
 
     <h1 class="headline" id="heroTitle">What video are we optimizing today?</h1>
-    <p class="sub" id="heroSub">Get tags, hashtags, keywords and titles for YouTube.</p>
+    <p class="sub" id="heroSub">Tags, hashtags and titles for YouTube</p>
 
     <!-- Mode switch: Suggestion (hook check) <-> Tags & Hashtags. The label swaps when you click it. -->
     <div class="modebar">
@@ -71,10 +71,10 @@
         <span class="mode-ic" id="modeIc" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
         <span id="modeLbl">Suggestion</span>
       </button>
-      <button class="modebtn" id="ctBtn" type="button" aria-label="Find tags of any video">
-        <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
-        <span id="ctLbl">Tag Finder</span>
-      </button>
+      <button class="modebtn" id="ctBtn" type="button" aria-label="Competitor tools">
+  <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
+  <span id="ctLbl">Competitor</span>
+</button>
     </div>
 
     <div class="drop" id="drop">
@@ -87,16 +87,20 @@
       <div class="preview" id="preview"></div>
     </div>
 
-    <!-- Tag Finder input (same box as "Choose video") -->
-    <div class="drop ct-drop hidden" id="ctInput">
-      <div class="ct-box">
-        <p class="ct-title">Paste a YouTube video link</p>
-        <div class="ct-row">
-          <input id="ctUrl" type="text" inputmode="url" autocomplete="off" placeholder="https://youtube.com/watch?v=…" aria-label="YouTube video link">
-          <button class="btn" id="ctGo">Get details</button>
-        </div>
-      </div>
+    <!-- Competitor box: 2 tabs + 1 ya 2 links (box ka size wahi) -->
+<div class="drop ct-drop hidden" id="ctInput">
+  <div class="ct-box">
+    <div class="ct-tabs" id="ctTabs">
+      <button type="button" class="ct-tab" data-sub="tags"><i class="fa-solid fa-magnifying-glass"></i> Tag Finder</button>
+      <button type="button" class="ct-tab" data-sub="plan"><i class="fa-solid fa-calendar-days"></i> Channel Planner</button>
     </div>
+    <div class="ct-row">
+      <input id="ctUrl" type="text" inputmode="url" autocomplete="off" placeholder="Your video link" aria-label="Your video link">
+      <input id="ctUrl2" type="text" inputmode="url" autocomplete="off" placeholder="Competitor video link" aria-label="Competitor video link">
+      <button class="btn" id="ctGo">Compare tags</button>
+    </div>
+  </div>
+</div>
 <!-- Saved mode ko page dikhne se pehle hi lagao, taaki load par heading aur boxes na badlein -->
 <script>
 (function () {
@@ -104,10 +108,10 @@
     var m = localStorage.getItem("trendly_mode");
     if (m !== "hook" && m !== "ct") return;
     var T = {
-      hook: { t: "How strong is your video's hook?", s: "Score your hook and get stronger opening lines.",
+      hook: { t: "How strong is your video's hook?", s: "Score your hook and get stronger lines",
               tg: "Tags & Hashtags", ti: '<i class="fa-solid fa-hashtag"></i>',
-              cl: "Tag Finder", ci: '<i class="fa-solid fa-magnifying-glass"></i>' },
-      ct:   { t: "Find the tags of any YouTube video", s: "Paste a link to see its tags and description.",
+              cl: "Competitor", ci: '<i class="fa-solid fa-chart-line"></i>' },
+      ct:   { t: "Compare your video with a competitor", s: "Find the tags your competitor is using",
               tg: "Suggestion", ti: '<i class="fa-solid fa-lightbulb"></i>',
               cl: "Tags & Hashtags", ci: '<i class="fa-solid fa-hashtag"></i>' }
     }[m];
@@ -117,10 +121,23 @@
     g("modeLbl").textContent = T.tg;  g("modeIc").innerHTML = T.ti;
     g("ctLbl").textContent = T.cl;    g("ctIc").innerHTML = T.ci;
     if (m === "hook") g("modeBtn").classList.add("is-hook");
-    if (m === "ct") {
+        if (m === "ct") {
       g("ctBtn").classList.add("is-hook");
       g("drop").classList.add("hidden");
       g("ctInput").classList.remove("hidden");
+      var c = JSON.parse(localStorage.getItem("trendly_ct") || "{}");
+      if (c.sub === "tags" || c.sub === "plan") {
+        var P = {
+          tags: { t: "Find the tags of any YouTube video", s: "Paste a link to see its tags and stats", p: "https://youtube.com/watch?v=…" },
+          plan: { t: "Plan the best days to upload videos", s: "Find the best day to upload your video", p: "Channel link or @handle" }
+        }[c.sub];
+        g("heroTitle").textContent = P.t;
+        g("heroSub").textContent = P.s;
+        g("ctUrl").placeholder = P.p;
+        g("ctUrl2").classList.add("hidden");
+        var tb = document.querySelector('#ctTabs [data-sub="' + c.sub + '"]');
+        if (tb) tb.classList.add("on");
+      }
     }
   } catch (e) {}
 })();
@@ -237,7 +254,42 @@
            <button class="btn sm ghost ct-dl" id="ctDl" type="button" disabled>Download thumbnail</button>
         </div>
       </div>
+<!-- Competitor compare result -->
+<div class="ct-body hidden" id="cmpBody">
+  <div class="box">
+    <header><h3>Comparison</h3></header>
+    <p class="hcur" id="cmpMsg"></p>
+    <p class="chip-hint" id="cmpSub"></p>
+  </div>
+  <div class="box" id="cmpMissBox">
+    <header><h3>Tags you are missing<small id="cmpMissInfo"></small></h3><button class="btn sm ghost" data-copy="cmpMiss">Copy</button></header>
+    <textarea id="cmpMiss" readonly></textarea>
+    <div class="tagchips" id="cmpMissChips"></div>
+    <p class="chip-hint">Tap a tag to copy it. Add only the tags that really match your video.</p>
+  </div>
+  <div class="box" id="cmpCommonBox">
+    <header><h3>Tags you both use</h3></header>
+    <div class="tagchips trend" id="cmpCommonChips"></div>
+  </div>
+  <div class="box" id="cmpMineBox">
+    <header><h3>Only you use these</h3></header>
+    <div class="tagchips trend" id="cmpMineChips"></div>
+  </div>
+</div>
 
+<!-- Channel Planner result -->
+<div class="ct-body hidden" id="planBody">
+  <div class="box">
+    <header><h3>Your upload plan<small id="planInfo"></small></h3></header>
+    <p class="hcur" id="planMsg"></p>
+    <p class="chip-hint" id="planTip"></p>
+  </div>
+  <div class="box">
+    <header><h3>Day by day</h3></header>
+    <ul class="ct-info" id="planDays"></ul>
+    <p class="chip-hint">Best day = the weekday whose videos got the most views on average. Times are in IST.</p>
+  </div>
+</div>
             <div class="ct-body hidden" id="ctBody">
         <div class="box">
           <header><h3>Tags<small id="ctTagInfo"></small></h3><button class="btn sm ghost" data-copy="ctTags">Copy</button></header>
@@ -315,7 +367,13 @@
     </div>
   </header>
   <div class="hmain">
-    <div class="note">Your history is saved for 7 days only. After that it is deleted automatically.</div>
+    <div class="note">Your history is saved for 7 days only. After that it is deleted automatically</div>
+    <div class="seg" id="hFilter">
+  <button class="on" data-f="tags">Analyze</button>
+  <button data-f="hook">Suggestion</button>
+  <button data-f="ct">Tag Finder</button>
+  <button data-f="cmp">Competitor</button>
+</div>
     <div class="hlist" id="hList"></div>
   </div>
 </section>
