@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8738128191861011"
+     crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trenndly – YouTube Tags, Hashtags &amp; Titles</title>
@@ -74,6 +79,10 @@
       <button class="modebtn" id="ctBtn" type="button" aria-label="Competitor tools">
   <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
   <span id="ctLbl">Competitor</span>
+        <button class="modebtn" id="pBtn" type="button" aria-label="AI video prompt">
+        <span class="mode-ic" id="pIc" aria-hidden="true"><i class="fa-solid fa-film"></i></span>
+        <span id="pLbl">Video Prompt</span>
+      </button>
 </button>
     </div>
 
@@ -101,27 +110,54 @@
     </div>
   </div>
 </div>
+<!-- Video Prompt box -->
+<div class="drop pm-drop hidden" id="pmInput">
+  <input type="file" id="pmFile" accept="video/*" class="hidden">
+  <div class="pm-box">
+    <div class="pm-vid">
+      <button type="button" class="btn sm ghost" id="pmPick"><i class="fa-solid fa-video"></i> Add a video (optional)</button>
+      <span class="pm-fname hidden" id="pmFname"></span>
+      <button type="button" class="pm-x hidden" id="pmClear" aria-label="Remove video">&times;</button>
+    </div>
+    <textarea id="pmDesc" maxlength="1500" placeholder="Describe your idea (optional). Example: ek robot jo gaon ki kitchen mein chai banata hai"></textarea>
+    <div class="pm-opts">
+      <div class="seg" id="pmFmt">
+        <button type="button" class="on" data-f="tall">Vertical 9:16</button>
+        <button type="button" data-f="wide">Wide 16:9</button>
+      </div>
+      <button class="btn" id="pmGo" disabled>Make prompt</button>
+    </div>
+  </div>
+</div>
 <!-- Saved mode ko page dikhne se pehle hi lagao, taaki load par heading aur boxes na badlein -->
 <script>
 (function () {
   try {
     var m = localStorage.getItem("trendly_mode");
-    if (m !== "hook" && m !== "ct") return;
+    if (m !== "hook" && m !== "ct" && m !== "prompt") return;
+    var FILM = '<i class="fa-solid fa-film"></i>', HASH = '<i class="fa-solid fa-hashtag"></i>',
+        BULB = '<i class="fa-solid fa-lightbulb"></i>', CHART = '<i class="fa-solid fa-chart-line"></i>';
     var T = {
       hook: { t: "How strong is your video's hook?", s: "Score your hook and get stronger lines",
-              tg: "Tags & Hashtags", ti: '<i class="fa-solid fa-hashtag"></i>',
-              cl: "Competitor", ci: '<i class="fa-solid fa-chart-line"></i>' },
+              tg: "Tags & Hashtags", ti: HASH, cl: "Competitor", ci: CHART, pl: "Video Prompt", pi: FILM },
       ct:   { t: "Compare your video with a competitor", s: "Find the tags your competitor is using",
-              tg: "Suggestion", ti: '<i class="fa-solid fa-lightbulb"></i>',
-              cl: "Tags & Hashtags", ci: '<i class="fa-solid fa-hashtag"></i>' }
+              tg: "Suggestion", ti: BULB, cl: "Tags & Hashtags", ci: HASH, pl: "Video Prompt", pi: FILM },
+      prompt: { t: "Turn any idea into an AI video prompt", s: "Add a video, an idea, or both",
+              tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Tags & Hashtags", pi: HASH }
     }[m];
     var g = function (i) { return document.getElementById(i); };
     g("heroTitle").textContent = T.t;
     g("heroSub").textContent = T.s;
     g("modeLbl").textContent = T.tg;  g("modeIc").innerHTML = T.ti;
     g("ctLbl").textContent = T.cl;    g("ctIc").innerHTML = T.ci;
+    g("pLbl").textContent = T.pl;     g("pIc").innerHTML = T.pi;
     if (m === "hook") g("modeBtn").classList.add("is-hook");
-        if (m === "ct") {
+    if (m === "prompt") {
+      g("pBtn").classList.add("is-hook");
+      g("drop").classList.add("hidden");
+      g("pmInput").classList.remove("hidden");
+    }
+    if (m === "ct") {
       g("ctBtn").classList.add("is-hook");
       g("drop").classList.add("hidden");
       g("ctInput").classList.remove("hidden");
@@ -238,7 +274,38 @@
         <p class="chip-hint">Tap a phrase to copy it.</p>
       </div>
     </div>
-
+    <!-- ===== Video Prompt results ===== -->
+    <div class="results hidden" id="pmResults">
+      <div class="box">
+        <header><h3><span id="pmTitle">Your video plan</span><small id="pmMeta"></small></h3></header>
+        <p class="hcur" id="pmSummary"></p>
+      </div>
+      <div class="box hidden" id="pmSeenBox">
+        <header><h3>What I understood from your video</h3></header>
+        <ul class="tips" id="pmSeen"></ul>
+      </div>
+      <div class="box">
+        <header><h3>Script, scene by scene<small id="pmSceneInfo"></small></h3><button class="btn sm ghost" id="pmCopyAll">Copy all prompts</button></header>
+        <div class="pm-scenes" id="pmScenes"></div>
+      </div>
+      <div class="box hidden" id="pmScriptBox">
+        <header><h3>Voiceover script</h3><button class="btn sm ghost" data-copy="pmScript">Copy</button></header>
+        <textarea id="pmScript" readonly></textarea>
+      </div>
+      <div class="box hidden" id="pmLookBox">
+        <header><h3>Character &amp; style<small>added to every scene</small></h3><button class="btn sm ghost" data-copy="pmLook">Copy</button></header>
+        <textarea id="pmLook" readonly></textarea>
+        <p class="chip-hint">The same description is added to every scene, so your character looks more similar. AI tools can still change small details, so use the same first frame or reference image in your video tool for the best match.</p>
+      </div>
+      <div class="box hidden" id="pmAvoidBox">
+        <header><h3>Negative prompt<small>optional</small></h3><button class="btn sm ghost" data-copy="pmAvoid">Copy</button></header>
+        <textarea id="pmAvoid" readonly></textarea>
+      </div>
+      <div class="box hidden" id="pmTipsBox">
+        <header><h3>Quick tips</h3></header>
+        <ul class="tips" id="pmTips"></ul>
+      </div>
+    </div>
     <!-- ===== Tag Finder results ===== -->
     <div class="results hidden" id="ctResults">
       <div class="box ct-video" id="ctVideo">
@@ -373,6 +440,7 @@
   <button data-f="hook">Suggestion</button>
   <button data-f="ct">Tag Finder</button>
   <button data-f="cmp">Competitor</button>
+    <button data-f="pm">Video Prompt</button>
 </div>
     <div class="hlist" id="hList"></div>
   </div>
@@ -461,6 +529,7 @@
       <span>Analyze video <b id="costTags">10</b></span>
       <span>Suggestion <b id="costHook">5</b></span>
       <span>Tag Finder <b>Free</b></span>
+      <span>Video Prompt <b id="costPrompt">6</b></span>
       <span>Refills every day</span>
     </div>
   </div>

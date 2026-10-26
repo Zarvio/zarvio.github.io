@@ -260,7 +260,7 @@ $("doneGo").onclick = () => { $("doneModal").classList.add("hidden"); enterApp(c
 $("modalOk").onclick = () => { $("loginModal").classList.add("hidden"); showAuth(false); };
 
 /* ---------- Coins (shown at the top of the side menu) ---------- */
-const COST = { tags: 10, hook: 5 };                      // the Worker has the final say; this is only for labels
+const COST = { tags: 10, hook: 5, prompt: 6 };           // the Worker has the final say; this is only for labels                 // the Worker has the final say; this is only for labels
 const coin = { left: null, max: 80 };
 function renderCoins(left, max) {
   if (typeof left === "number") coin.left = left;
@@ -272,6 +272,7 @@ function renderCoins(left, max) {
   $("coinMax").textContent = coin.left == null ? "" : "/ " + coin.max;
   $("costTags").textContent = COST.tags + " coins";
   $("costHook").textContent = COST.hook + " coins";
+  if ($("costPrompt")) $("costPrompt").textContent = COST.prompt + " coins";
 }
 function resetCoins() { coin.left = null; renderCoins(); }
 async function refreshCoins() {
@@ -305,9 +306,15 @@ const MODES = {
     sub: "Paste a link to see its tags and description",
     drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
     go: "Get details", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
+  },
+  prompt: {
+    title: "Turn any idea into an AI video prompt",
+    sub: "Add a video, an idea, or both",
+    drop: 'Drag and drop a video here (max <span class="maxmb">300</span> MB)',
+    go: "Make prompt", toggle: "Suggestion", icon: '<i class="fa-solid fa-lightbulb"></i>'
   }
 };
-function updateGoLabel() { if (mode === "ct") return; $("go").textContent = MODES[mode].go; }
+function updateGoLabel() { if (mode === "ct" || mode === "prompt") return; $("go").textContent = MODES[mode].go; }
 /* Smooth mode switch: only opacity + transform move, so it stays smooth on phones */
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const EASE = "cubic-bezier(.22,.8,.3,1)";
@@ -340,7 +347,7 @@ function fadeHide(el, animate) {
     a.onfinish = () => { el.classList.add("hidden"); a.cancel(); done(); };
   });
 }
-const modeDone = { tags: false, hook: false };            // kis mode ka result ban chuka hai
+const modeDone = { tags: false, hook: false, prompt: false };   // kis mode ka result ban chuka hai
 const CT_BTN = {
   on:  { lbl: "Tags & Hashtags", ic: '<i class="fa-solid fa-hashtag"></i>' },
     off: { lbl: "Competitor", ic: '<i class="fa-solid fa-chart-line"></i>' }
@@ -349,7 +356,7 @@ const CT_BTN = {
 function fadeShow(el, animate) {
   const was = el.classList.contains("hidden");
   el.classList.remove("hidden");
-    if (el.id === "drop" || el.id === "ctInput" || el.id === "ctResults") return Promise.resolve();   // inka animation CSS karta hai
+ if (el.id === "drop" || el.id === "ctInput" || el.id === "ctResults" || el.id === "pmInput" || el.id === "pmResults") return Promise.resolve();   // inka animation CSS karta hai
   if (!was || !animate || !el.animate || reduceMotion()) return Promise.resolve();
   return new Promise((done) => {
     const a = el.animate(
@@ -380,18 +387,29 @@ async function settleButtons(m, animate) {
   if ($("btnRow").classList.contains("hidden") && st !== "idle" && st !== "running") await previewReady(500);
   await setUIAnimated(st);
 }
+const PM_BTN = {
+  on:  { lbl: "Tags & Hashtags", ic: '<i class="fa-solid fa-hashtag"></i>' },
+  off: { lbl: "Video Prompt", ic: '<i class="fa-solid fa-film"></i>' }
+};
 function applyMode(m, animate = false) {
-    mode = m;
-   try { localStorage.setItem("trendly_mode", m); } catch (_) {}   // user ka aakhri mode yaad rahe
+  mode = m;
+  try { localStorage.setItem("trendly_mode", m); } catch (_) {}   // user ka aakhri mode yaad rahe
   ctMode = m === "ct";
+  const pmMode = m === "prompt";
   if (ctMode) ctShowSub();              // wapas aane par button "Fetched ✓" hi dikhe
-  const t = m === "ct" ? { ...MODES.ct, title: CT_SUB[ctSub].title, sub: CT_SUB[ctSub].sub } : MODES[m], cb = ctMode ? CT_BTN.on : CT_BTN.off;
+  const t = ctMode ? { ...MODES.ct, title: CT_SUB[ctSub].title, sub: CT_SUB[ctSub].sub } : MODES[m];
+  const cb = ctMode ? CT_BTN.on : CT_BTN.off, pb = pmMode ? PM_BTN.on : PM_BTN.off;
   $("modeBtn").classList.toggle("is-hook", m === "hook");
   $("ctBtn").classList.toggle("is-hook", ctMode);
+  $("pBtn").classList.toggle("is-hook", pmMode);
   hideError();
   const swap = animate ? fadeSwap : (el, change) => { change(); return Promise.resolve(); };
   // har mode ka result sirf apne mode mein dikhe, aur wapas aane par wahi purana result
-    const showRes = { results: m === "tags" && modeDone.tags, hookResults: m === "hook" && modeDone.hook, ctResults: m === "ct" && (ctDone || ctBusy) };
+  const showRes = {
+    results: m === "tags" && modeDone.tags, hookResults: m === "hook" && modeDone.hook,
+    pmResults: pmMode && modeDone.prompt, ctResults: ctMode && (ctDone || ctBusy)
+  };
+  const late = (id) => id === "ctResults" || id === "pmResults";    // ye input box aane ke baad dikhte hain
   const jobs = [
     swap($("heroTitle"), () => { $("heroTitle").textContent = t.title; }, 0),
     swap($("heroSub"), () => { $("heroSub").textContent = t.sub; }, 60),
@@ -399,9 +417,9 @@ function applyMode(m, animate = false) {
       $("dropText").innerHTML = t.drop;
       $("dropText").querySelectorAll(".maxmb").forEach(e => e.textContent = MAX_MB);
     }, 120),
-        ...["results", "hookResults", "ctResults"].map(id => showRes[id] ? (id === "ctResults" ? Promise.resolve() : fadeShow($(id), animate)) : fadeHide($(id), animate))
+    ...["results", "hookResults", "pmResults", "ctResults"].map(id => showRes[id] ? (late(id) ? Promise.resolve() : fadeShow($(id), animate)) : fadeHide($(id), animate))
   ];
-  // only the button that actually changes gets swapped, so you never see two same buttons
+  // sirf wahi button swap hota hai jiska label badalta hai, taaki do same buttons na dikhein
   if ($("modeLbl").textContent !== t.toggle) {
     jobs.push(swap($("modeLbl"), () => { $("modeLbl").textContent = t.toggle; }, 0));
     jobs.push(swap($("modeIc"), () => { $("modeIc").innerHTML = t.icon; }, 0));
@@ -410,12 +428,20 @@ function applyMode(m, animate = false) {
     jobs.push(swap($("ctLbl"), () => { $("ctLbl").textContent = cb.lbl; }, 0));
     jobs.push(swap($("ctIc"), () => { $("ctIc").innerHTML = cb.ic; }, 0));
   }
-    const boxSwap = ctMode ? swapBoxes($("ctInput"), $("drop"), animate) : swapBoxes($("drop"), $("ctInput"), animate);
+  if ($("pLbl").textContent !== pb.lbl) {
+    jobs.push(swap($("pLbl"), () => { $("pLbl").textContent = pb.lbl; }, 0));
+    jobs.push(swap($("pIc"), () => { $("pIc").innerHTML = pb.ic; }, 0));
+  }
+  // teen input boxes (upload / link / video prompt): baaki do chhupte hain, phir ek aata hai
+  const boxes = [$("drop"), $("ctInput"), $("pmInput")];
+  const showBox = ctMode ? $("ctInput") : pmMode ? $("pmInput") : $("drop");
+  const boxSwap = Promise.all(boxes.filter(b => b !== showBox).map(b => fadeHide(b, animate))).then(() => fadeShow(showBox, animate));
   jobs.push(boxSwap);
   // buttons: pehle boxes badal jaayein, phir buttons aayein (taaki upar-neeche na kudein)
-  if (ctMode) jobs.push(fadeHide($("btnRow"), animate));
+  if (ctMode || pmMode) jobs.push(fadeHide($("btnRow"), animate));
   else jobs.push(boxSwap.then(() => settleButtons(m, animate)));
   if (showRes.ctResults) jobs.push(boxSwap.then(() => fadeShow($("ctResults"), animate)));   // link box aane ke baad hi result dikhe
+  if (showRes.pmResults) jobs.push(boxSwap.then(() => fadeShow($("pmResults"), animate)));
   log.info("Mode:", m);
   return Promise.all(jobs);
 }
@@ -443,6 +469,7 @@ function setUI(state) {
   $("again").classList.toggle("hidden", state !== "ready" && state !== "done");
   $("modeBtn").disabled = state === "running";
   $("ctBtn").disabled = state === "running";
+ $("pBtn").disabled = state === "running";
 }
 setUI("idle");
 /* Buttons ko animation ke saath dikhao / chhupao (pehle purane hatao, phir naye laao) */
@@ -451,6 +478,7 @@ function setUIAnimated(state) {
   const tok = ++uiTok;
   $("modeBtn").disabled = state === "running";
   $("ctBtn").disabled = state === "running";
+ $("pBtn").disabled = state === "running";
   const items = [
     [$("btnRow"), !(state === "idle" || state === "running")],
     [$("go"), state === "ready"],
@@ -1164,7 +1192,159 @@ async function sendThumb(hid, blob) {                   // preview image for His
   await api("thumb", { hid, thumbData: await blobToDataUrl(blob) });
 }
 
+/* ---------- Video Prompt: video and/or idea -> scene-by-scene AI video prompts (coins: 6) ---------- */
+const PM_MAX = 100 * 1048576;                            // Worker ke PROMPT_MAX_MB (default 100) se match hona chahiye
+let pmVideo = null, pmFormat = "tall", pmLast = null;
 
+$("pBtn").onclick = () => {
+  if (running || switching) return;
+  switching = true;
+  applyMode(mode === "prompt" ? "tags" : "prompt", true).then(() => { switching = false; });
+};
+
+function pmBtn() {                                       // button tabhi khule jab video ya idea (5+ letters) ho
+  $("pmGo").disabled = running || !(pmVideo || $("pmDesc").value.trim().length >= 5);
+}
+function pmRefresh() {
+  const has = !!pmVideo;
+  $("pmFname").textContent = has ? `${pmVideo.name} (${(pmVideo.size / 1048576).toFixed(1)} MB)` : "";
+  $("pmFname").classList.toggle("hidden", !has);
+  $("pmClear").classList.toggle("hidden", !has);
+  $("pmPick").innerHTML = has ? '<i class="fa-solid fa-rotate"></i> Change video' : '<i class="fa-solid fa-video"></i> Add a video (optional)';
+  pmBtn();
+}
+function pmSetVideo(f) {
+  if (running || !f) return;
+  hideError();
+  if (!f.type.startsWith("video")) return showError("Please choose a video file.");
+  if (f.size > PM_MAX) return showError(`This video is too large. For Video Prompt the maximum size is ${Math.round(PM_MAX / 1048576)} MB.`);
+  pmVideo = f;
+  pmRefresh();
+}
+$("pmPick").onclick = () => $("pmFile").click();
+$("pmFile").onchange = (e) => { pmSetVideo(e.target.files[0]); e.target.value = ""; };
+$("pmClear").onclick = () => { if (running) return; pmVideo = null; pmRefresh(); };
+$("pmDesc").addEventListener("input", pmBtn);
+["dragover", "dragenter"].forEach(ev => $("pmInput").addEventListener(ev, (e) => { e.preventDefault(); $("pmInput").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("pmInput").addEventListener(ev, (e) => { e.preventDefault(); $("pmInput").classList.remove("over"); }));
+$("pmInput").addEventListener("drop", (e) => pmSetVideo(e.dataTransfer.files[0]));
+$("pmFmt").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  pmFormat = b.dataset.f;
+  document.querySelectorAll("#pmFmt button").forEach(x => x.classList.toggle("on", x === b));
+};
+
+/* Video upload (start + chunks, 3 koshish tak) aur file ka naam wapas */
+async function pmUpload(file) {
+  const { uploadId } = await withTries(() => api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4", mode: "prompt" }));
+  let fileName = null;
+  for (let offset = 0; offset < file.size; offset += CHUNK) {
+    const end = Math.min(offset + CHUNK, file.size), last = end >= file.size;
+    const data = await withTries(() => sendChunk(uploadId, file, offset, end));
+    if (last) fileName = data.file;
+    log.info(`Prompt video uploaded ${Math.round(end / file.size * 100)}%`);
+  }
+  return fileName;
+}
+
+$("pmGo").onclick = async () => {
+  if (running) return;
+  if (!currentUser) { $("loginModal").classList.remove("hidden"); $("modalOk").focus(); return; }
+  const desc = $("pmDesc").value.trim(), file = pmVideo, fmt = pmFormat;
+  if (!file && desc.length < 5) return showError("Add a video or describe your idea first.");
+  if (coin.left != null && coin.left < COST.prompt) {
+    showError(`Not enough coins. You need ${COST.prompt} but have ${coin.left}. Coins refill every day.`);
+    return;
+  }
+  running = true;
+  hideError();
+  ["modeBtn", "ctBtn", "pBtn", "pmGo"].forEach(id => { $(id).disabled = true; });
+  $("pmResults").classList.add("hidden");
+  modeDone.prompt = false;
+  startSkeleton(file ? "promptV" : "promptT");
+  $("skel").classList.toggle("nostrip", !file);          // sirf idea ho to video-frames wali patti nahi
+
+  let out;
+  try {
+    const fileName = file ? await pmUpload(file) : null;
+    if (file) { setSteps(2); clearInterval(stepTimer); stepTimer = setInterval(() => setSteps(3), 4000); }
+    out = { data: await api("pmake", { file: fileName, desc, fmt }) };
+  } catch (e) { log.error(e); out = { error: e.message, safe: e.safe }; }
+
+  const thumb = out.error ? null : await Promise.race([thumbPromise, sleep(2500).then(() => null)]);
+  stopSkeleton();
+  $("skel").classList.remove("nostrip");
+  if (out.error) {
+    showError(out.safe ? out.error : "We couldn't make your prompt. Please try again.");
+    refreshCoins();                                      // fail hua to coins wapas, asli balance dikhao
+  } else {
+    if (typeof out.data.coins === "number") renderCoins(out.data.coins, out.data.max);
+    renderPm(out.data);
+    modeDone.prompt = true;
+    if (out.data.hid && thumb) sendThumb(out.data.hid, thumb).catch(e => log.warn("Thumb save failed:", e));
+  }
+  running = false;
+  ["modeBtn", "ctBtn", "pBtn"].forEach(id => { $(id).disabled = false; });
+  pmBtn();
+};
+
+function pmRow(label, text) {                            // ek label + Copy button + text block
+  const row = document.createElement("div"); row.className = "pm-row";
+  const head = document.createElement("div"); head.className = "pm-rh";
+  const l = document.createElement("span"); l.className = "pm-lbl"; l.textContent = label;
+  const cb = document.createElement("button"); cb.className = "btn sm ghost"; cb.textContent = "Copy";
+  cb.onclick = (e) => copyText(text, e.currentTarget);
+  head.append(l, cb);
+  const p = document.createElement("p"); p.className = "pm-code"; p.textContent = text;
+  row.append(head, p);
+  return row;
+}
+
+function renderPm(d) {
+  pmLast = d;
+  const sc = d.scenes || [], total = sc.reduce((a, s) => a + (s.seconds || 0), 0);
+  $("pmTitle").textContent = d.title || "Your video plan";
+  $("pmMeta").textContent = `${sc.length} scenes, about ${total}s, ${d.fmt === "wide" ? "16:9" : "9:16"}`;
+  $("pmSummary").textContent = d.summary || "";
+
+  const notes = d.videoNotes || [];
+  $("pmSeenBox").classList.toggle("hidden", !notes.length);
+  fillList($("pmSeen"), notes);
+
+  $("pmSceneInfo").textContent = d.language ? "Language: " + d.language : "";
+  const box = $("pmScenes"); box.innerHTML = "";
+  sc.forEach((s, i) => {
+    const card = document.createElement("div"); card.className = "pm-scene";
+    const h = document.createElement("div"); h.className = "pm-sh";
+    const b = document.createElement("b"); b.textContent = "Scene " + (i + 1) + (s.title ? " \u00B7 " + s.title : "");
+    const n = document.createElement("span"); n.className = "pm-sec"; n.textContent = (s.seconds || 5) + "s";
+    h.append(b, n); card.appendChild(h);
+    if (s.explain) { const p = document.createElement("p"); p.className = "pm-ex"; p.textContent = s.explain; card.appendChild(p); }
+    if (s.voice) card.appendChild(pmRow("Voiceover", s.voice));
+    card.appendChild(pmRow("Prompt", s.prompt));
+    box.appendChild(card);
+  });
+
+  const voice = sc.map(s => s.voice).filter(Boolean);
+  $("pmScript").value = voice.join("\n");
+  $("pmScriptBox").classList.toggle("hidden", !voice.length);
+  $("pmLook").value = d.look || "";
+  $("pmLookBox").classList.toggle("hidden", !d.look);
+  $("pmAvoid").value = d.avoid || "";
+  $("pmAvoidBox").classList.toggle("hidden", !d.avoid);
+  $("pmTipsBox").classList.toggle("hidden", !(d.tips || []).length);
+  fillList($("pmTips"), d.tips);
+  $("pmResults").classList.remove("hidden");
+}
+
+$("pmCopyAll").onclick = (e) => {
+  if (!pmLast) return;
+  const t = (pmLast.scenes || []).map((s, i) =>
+    `SCENE ${i + 1} (${s.seconds || 5}s)${s.title ? " - " + s.title : ""}\n${s.prompt}` + (s.voice ? `\nVoiceover: ${s.voice}` : "")
+  ).join("\n\n");
+  copyText(t, e.currentTarget);
+};
+pmRefresh();
 /* ---------- Polish: scroll reveal, footer year, loading state ---------- */
 $("yr").textContent = new Date().getFullYear();
 document.querySelectorAll(".maxmb").forEach(e => e.textContent = MAX_MB);   // size limit page par config.js se aati hai
@@ -1239,7 +1419,9 @@ function setSteps(active) {
 
 const SKEL_TXT = {
   tags: ["Reading your video", "Watching every scene", "Listening to the audio", "Writing tags and titles"],
-  hook: ["Reading your video", "Checking your hook", "Finding trending ideas", "Writing stronger hooks"]
+    hook: ["Reading your video", "Checking your hook", "Finding trending ideas", "Writing stronger hooks"],
+  promptV: ["Reading your idea", "Watching your video", "Writing the script", "Building scene prompts"],
+  promptT: ["Reading your idea", "Planning the story", "Writing the script", "Building scene prompts"]
 };
 function startSkeleton(m = "tags") {
   let i = 0;
@@ -1249,8 +1431,9 @@ function startSkeleton(m = "tags") {
   $("skel").classList.remove("hidden");
   $("skel").scrollIntoView({ behavior: lowEnd ? "auto" : "smooth", block: "nearest" });
   clearInterval(stepTimer); clearTimeout(stepTimer);
-  if (m === "tags") {
-    thumbPromise = chosen ? captureFrames(chosen) : Promise.resolve(null);
+    if (m === "tags" || m === "promptV" || m === "promptT") {
+    const src = m === "tags" ? chosen : m === "promptV" ? pmVideo : null;
+    thumbPromise = src ? captureFrames(src) : Promise.resolve(null);
     stepTimer = setInterval(() => { i = Math.min(i + 1, 3); setSteps(i); }, 5000);
   } else {
     thumbPromise = Promise.resolve(null);                // hook mode moves the steps itself (see analyzeHook)
@@ -1347,7 +1530,7 @@ const H = { token: 0, filter: "tags", loading: false, more: false, cursor: null,
 const histMatch = (it) => H.filter === "tags" ? !it.type : it.type === H.filter;
 const HIST_EMPTY = {
   tags: "No Analyze history yet. Analyze a video and it will appear here.",
-  hook: "No Suggestion history yet.", ct: "No Tag Finder history yet.", cmp: "No Competitor history yet."
+  hook: "No Suggestion history yet.", ct: "No Tag Finder history yet.", cmp: "No Competitor history yet.", pm: "No Video Prompt history yet."
 };
 $("hFilter").onclick = (e) => {
   const b = e.target.closest("button");
@@ -1481,7 +1664,13 @@ const ctHistDetails = (it) => [
   ["Channel total views", it.chTotalViews], ["Channel country", it.country]
 ].filter(([, x]) => x).map(([k, x]) => k + ": " + x).join("\n");
 function buildHistBody(it, body, art) {
-    const sections = (it.type === "ct"
+        const sections = (it.type === "pm"
+    ? [["Summary", it.summary || ""],
+       ["Character & style (added to every scene)", it.look || ""],
+       ["Scenes", (it.scenes || []).map((s, i) => "Scene " + (i + 1) + " (" + (s.seconds || 5) + "s)" + (s.title ? " - " + s.title : "") + "\n" + (s.explain ? s.explain + "\n" : "") + (s.voice ? "Voiceover: " + s.voice + "\n" : "") + "Prompt: " + (s.prompt || "")).join("\n\n")],
+       ["Negative prompt", it.avoid || ""],
+       ["Tips", (it.tips || []).join("\n")]]
+    : it.type === "ct"
     ? [["Video details", ctHistDetails(it)], ["Tags", (it.tags || []).join(", ")], ["Description", it.description || ""]]
         : it.type === "cmp"
     ? [["Videos", "You: " + (it.title || "") + "\nCompetitor: " + (it.rivalTitle || "")],
@@ -1536,6 +1725,7 @@ function histCard(it, now) {
   const days = Math.max(1, Math.ceil((it.expiresAt - now) / 86400000));
   const b = document.createElement("b");
 b.textContent = it.type === "hook" ? "Hook check \u00B7 " + (it.score || 0) + "/100"
+  : it.type === "pm" ? "Video Prompt \u00B7 " + (it.title || "Plan")
   : it.type === "cmp" ? "Competitor \u00B7 " + (it.title || "Video")
   : it.type === "ct" ? "Tag Finder \u00B7 " + (it.title || "Video")
   : (it.titles && it.titles[0]) || it.fileName || "Video";
@@ -1711,6 +1901,6 @@ try {
   $("ctUrl2").value = String(c.u2 || "").slice(0, 300);
 } catch (_) {}
 let startMode = "tags";
-try { const sm = localStorage.getItem("trendly_mode"); if (sm === "hook" || sm === "ct") startMode = sm; } catch (_) {}
+try { const sm = localStorage.getItem("trendly_mode"); if (sm === "hook" || sm === "ct" || sm === "prompt") startMode = sm; } catch (_) {}
 applyMode(startMode);                                    // pichli baar jo mode tha wahi khulega
 renderCoins();
