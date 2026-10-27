@@ -1195,7 +1195,7 @@ async function sendThumb(hid, blob) {                   // preview image for His
 /* ---------- Video Prompt: video and/or idea -> scene-by-scene AI video prompts (coins: 6) ---------- */
 const PM_MAX = 100 * 1048576;                            // Worker ke PROMPT_MAX_MB (default 100) se match hona chahiye
 let pmVideo = null, pmFormat = "tall", pmLast = null;
-
+let pmSecs = 8;
 $("pBtn").onclick = () => {
   if (running || switching) return;
   switching = true;
@@ -1207,10 +1207,9 @@ function pmBtn() {                                       // button tabhi khule j
 }
 function pmRefresh() {
   const has = !!pmVideo;
-  $("pmFname").textContent = has ? `${pmVideo.name} (${(pmVideo.size / 1048576).toFixed(1)} MB)` : "";
-  $("pmFname").classList.toggle("hidden", !has);
+  $("pmFname").classList.add("hidden");
   $("pmClear").classList.toggle("hidden", !has);
-  $("pmPick").innerHTML = has ? '<i class="fa-solid fa-rotate"></i> Change video' : '<i class="fa-solid fa-video"></i> Add a video (optional)';
+    $("pmPick").innerHTML = has ? '<i class="fa-solid fa-circle-check"></i> Video added · Change' : '<i class="fa-solid fa-video"></i> Add a video (optional)';
   pmBtn();
 }
 function pmSetVideo(f) {
@@ -1233,7 +1232,24 @@ $("pmFmt").onclick = (e) => {
   pmFormat = b.dataset.f;
   document.querySelectorAll("#pmFmt button").forEach(x => x.classList.toggle("on", x === b));
 };
-
+$("pmDur").onclick = (e) => {                            // 8 ya 10 sec button
+  const b = e.target.closest("button"); if (!b) return;
+  pmSecs = +b.dataset.s;
+  $("pmSecs").value = ""; $("pmSecs").classList.remove("on");
+  document.querySelectorAll("#pmDur button").forEach(x => x.classList.toggle("on", x === b));
+};
+$("pmSecs").addEventListener("input", () => {            // custom: sirf number
+  const el = $("pmSecs");
+  el.value = el.value.replace(/\D/g, "").slice(0, 2);
+  const btns = document.querySelectorAll("#pmDur button");
+  if (!el.value) {                                       // khali kiya to wapas 8 sec
+    pmSecs = 8; el.classList.remove("on");
+    btns.forEach(x => x.classList.toggle("on", x.dataset.s === "8"));
+    return;
+  }
+  pmSecs = +el.value; el.classList.add("on");
+  btns.forEach(x => x.classList.remove("on"));
+});
 /* Video upload (start + chunks, 3 koshish tak) aur file ka naam wapas */
 async function pmUpload(file) {
   const { uploadId } = await withTries(() => api("start", { name: file.name, size: file.size, mime: file.type || "video/mp4", mode: "prompt" }));
@@ -1250,7 +1266,8 @@ async function pmUpload(file) {
 $("pmGo").onclick = async () => {
   if (running) return;
   if (!currentUser) { $("loginModal").classList.remove("hidden"); $("modalOk").focus(); return; }
-  const desc = $("pmDesc").value.trim(), file = pmVideo, fmt = pmFormat;
+    const desc = $("pmDesc").value.trim(), file = pmVideo, fmt = pmFormat, secs = pmSecs;
+  if (secs < 3 || secs > 20) return showError("Scene length must be between 3 and 20 seconds.");
   if (!file && desc.length < 5) return showError("Add a video or describe your idea first.");
   if (coin.left != null && coin.left < COST.prompt) {
     showError(`Not enough coins. You need ${COST.prompt} but have ${coin.left}. Coins refill every day.`);
@@ -1268,7 +1285,7 @@ $("pmGo").onclick = async () => {
   try {
     const fileName = file ? await pmUpload(file) : null;
     if (file) { setSteps(2); clearInterval(stepTimer); stepTimer = setInterval(() => setSteps(3), 4000); }
-    out = { data: await api("pmake", { file: fileName, desc, fmt }) };
+    out = { data: await api("pmake", { file: fileName, desc, fmt, secs }) };
   } catch (e) { log.error(e); out = { error: e.message, safe: e.safe }; }
 
   const thumb = out.error ? null : await Promise.race([thumbPromise, sleep(2500).then(() => null)]);
@@ -1320,16 +1337,18 @@ function renderPm(d) {
     const n = document.createElement("span"); n.className = "pm-sec"; n.textContent = (s.seconds || 5) + "s";
     h.append(b, n); card.appendChild(h);
     if (s.explain) { const p = document.createElement("p"); p.className = "pm-ex"; p.textContent = s.explain; card.appendChild(p); }
-    if (s.voice) card.appendChild(pmRow("Voiceover", s.voice));
+        const need = [s.placeName && "Place: " + s.placeName, (s.props || []).length && "Items: " + s.props.join(", ")].filter(Boolean).join("  |  ");
+    if (need) { const p = document.createElement("p"); p.className = "pm-ex"; p.textContent = need; card.appendChild(p); }
+   
     card.appendChild(pmRow("Prompt", s.prompt));
     box.appendChild(card);
   });
 
-  const voice = sc.map(s => s.voice).filter(Boolean);
-  $("pmScript").value = voice.join("\n");
-  $("pmScriptBox").classList.toggle("hidden", !voice.length);
-  $("pmLook").value = d.look || "";
-  $("pmLookBox").classList.toggle("hidden", !d.look);
+
+
+  $("pmSheet").value = d.sheet || "";
+  $("pmSheetBox").classList.toggle("hidden", !d.sheet);
+ $("pmGuide").classList.toggle("hidden", !d.sheet);
   $("pmAvoid").value = d.avoid || "";
   $("pmAvoidBox").classList.toggle("hidden", !d.avoid);
   $("pmTipsBox").classList.toggle("hidden", !(d.tips || []).length);
@@ -1666,7 +1685,7 @@ const ctHistDetails = (it) => [
 function buildHistBody(it, body, art) {
         const sections = (it.type === "pm"
     ? [["Summary", it.summary || ""],
-       ["Character & style (added to every scene)", it.look || ""],
+       ["Reference image prompt (make this image first)", it.sheet || ""],
        ["Scenes", (it.scenes || []).map((s, i) => "Scene " + (i + 1) + " (" + (s.seconds || 5) + "s)" + (s.title ? " - " + s.title : "") + "\n" + (s.explain ? s.explain + "\n" : "") + (s.voice ? "Voiceover: " + s.voice + "\n" : "") + "Prompt: " + (s.prompt || "")).join("\n\n")],
        ["Negative prompt", it.avoid || ""],
        ["Tips", (it.tips || []).join("\n")]]

@@ -119,7 +119,15 @@
       <span class="pm-fname hidden" id="pmFname"></span>
       <button type="button" class="pm-x hidden" id="pmClear" aria-label="Remove video">&times;</button>
     </div>
-    <textarea id="pmDesc" maxlength="1500" placeholder="Describe your idea (optional). Example: ek robot jo gaon ki kitchen mein chai banata hai"></textarea>
+    <textarea id="pmDesc" maxlength="1500" placeholder="Describe your idea (optional)"></textarea>
+        <div class="pm-dur">
+      <span class="pm-lbl">Scene length</span>
+      <div class="seg" id="pmDur">
+        <button type="button" class="on" data-s="8">8 sec</button>
+        <button type="button" data-s="10">10 sec</button>
+      </div>
+      <input id="pmSecs" type="text" inputmode="numeric" maxlength="2" placeholder="Custom" autocomplete="off" aria-label="Custom scene length in seconds">
+    </div>
     <div class="pm-opts">
       <div class="seg" id="pmFmt">
         <button type="button" class="on" data-f="tall">Vertical 9:16</button>
@@ -280,6 +288,18 @@
         <header><h3><span id="pmTitle">Your video plan</span><small id="pmMeta"></small></h3></header>
         <p class="hcur" id="pmSummary"></p>
       </div>
+                 <div class="box hidden" id="pmSheetBox">
+        <header><h3>Step 1: Reference image<small>one image with everything</small></h3><button class="btn sm ghost" data-copy="pmSheet">Copy</button></header>
+        <textarea id="pmSheet" readonly></textarea>
+      </div>
+      <div class="pm-guide hidden" id="pmGuide">
+        <h3>How to use these prompts</h3>
+        <ol class="tips">
+          <li>Copy the reference prompt above and paste it in any AI image tool. Make 1 image.</li>
+          <li>Save that image. In your AI video tool, attach it as the reference image for every scene.</li>
+          <li>Now copy the scene prompts below one by one and generate each clip. The character, place and items will stay the same.</li>
+        </ol>
+      </div>
       <div class="box hidden" id="pmSeenBox">
         <header><h3>What I understood from your video</h3></header>
         <ul class="tips" id="pmSeen"></ul>
@@ -288,15 +308,7 @@
         <header><h3>Script, scene by scene<small id="pmSceneInfo"></small></h3><button class="btn sm ghost" id="pmCopyAll">Copy all prompts</button></header>
         <div class="pm-scenes" id="pmScenes"></div>
       </div>
-      <div class="box hidden" id="pmScriptBox">
-        <header><h3>Voiceover script</h3><button class="btn sm ghost" data-copy="pmScript">Copy</button></header>
-        <textarea id="pmScript" readonly></textarea>
-      </div>
-      <div class="box hidden" id="pmLookBox">
-        <header><h3>Character &amp; style<small>added to every scene</small></h3><button class="btn sm ghost" data-copy="pmLook">Copy</button></header>
-        <textarea id="pmLook" readonly></textarea>
-        <p class="chip-hint">The same description is added to every scene, so your character looks more similar. AI tools can still change small details, so use the same first frame or reference image in your video tool for the best match.</p>
-      </div>
+
       <div class="box hidden" id="pmAvoidBox">
         <header><h3>Negative prompt<small>optional</small></h3><button class="btn sm ghost" data-copy="pmAvoid">Copy</button></header>
         <textarea id="pmAvoid" readonly></textarea>

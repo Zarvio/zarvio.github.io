@@ -304,3 +304,23 @@ html[data-theme="dark"] #coinNum[data-set] { color: hsl(var(--coin-h) 80% 58%); 
   .pm-opts .btn { width:100%; }
   #pmDesc { font-size:16px; }
 }
+#pmSheet { min-height:200px; }
+.pm-dur { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pm-dur .seg { margin:0; }
+#pmSecs {
+  width:120px; padding:8px 12px; border-radius:var(--r-pill); border:1px solid var(--line);
+  background:var(--bg); color:var(--ink); font:inherit; font-size:14px; text-align:center;
+}
+#pmSecs:focus { outline:none; border-color:color-mix(in srgb, var(--green) 55%, var(--line)); }
+#pmSecs.on { border-color:var(--green); background:color-mix(in srgb, var(--green) 14%, var(--bg)); color:var(--green-ink); }
+
+.pm-guide {
+  margin:0 0 16px; border-radius:var(--r-md);
+  border:1px solid color-mix(in srgb, #3B82F6 35%, var(--line));
+  background:color-mix(in srgb, #3B82F6 10%, var(--bg));
+}
+.pm-guide.hidden { display:none; }
+.pm-guide h3 { margin:0; padding:12px 16px 0; font-size:14px; font-weight:600; }
+.pm-guide .tips { padding-top:10px; }
+
+@media (max-width:600px) { #pmSecs { font-size:16px; } }
