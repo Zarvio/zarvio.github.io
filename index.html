@@ -18,8 +18,9 @@
 <link rel="apple-touch-icon" href="./assets/logo-Dxp94-R5.png?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-  <script type="module" crossorigin src="./assets/main-CKBJ2X1S.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-bjo78AzT.css">
+  <script type="module" crossorigin src="./assets/main-Q2znXxiS.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-CQf55TwB.css">
+  <link rel="stylesheet" crossorigin href="./assets/style-D1-AD8Rj.css">
 </head>
 <body>
 
@@ -397,34 +398,24 @@
     </div>
   </section>
 
-  <section class="sec" id="features">
-    <h2 class="rv">Everything you need to rank</h2>
+
+<section class="sec" id="more">
+    <h2 class="rv">Want to know more?</h2>
     <div class="cards">
-      <article class="card rv"><h3>Smart tags</h3><p>10 to 15 tags that mix short and long-tail searches, with a live character counter.</p></article>
-      <article class="card rv"><h3>20 hashtags</h3><p>Relevant hashtags matched to your niche and ready to paste.</p></article>
-      <article class="card rv"><h3>Search keywords</h3><p>Phrases people actually type into YouTube search.</p></article>
-      <article class="card rv"><h3>5 click-worthy titles</h3><p>Honest, catchy titles under 70 characters, with a length check on each.</p></article>
-      <article class="card rv"><h3>SEO score</h3><p>See an instant score for your results and copy everything in one tap.</p></article>
-      <article class="card rv"><h3>Hook check</h3><p>Use Suggestion to score your video's hook and get stronger opening lines.</p></article>
-      <article class="card rv"><h3>Tag Finder</h3><p>Paste any YouTube link and see its tags, stats and description instantly.</p></article>
-      <article class="card rv"><h3>Sees and hears</h3><p>Analysis uses both what appears on screen and what is said.</p></article>
-      <article class="card rv"><h3>Private by design</h3><p>Your video is deleted automatically as soon as the analysis finishes.</p></article>
+      <a class="card rv" href="privacy-policy.html#features-full" style="text-decoration:none;color:inherit">
+        <h3>Everything you need to rank &rarr;</h3>
+        <p>Smart tags, hashtags, keywords, titles, SEO score, hook check, Tag Finder and more</p>
+      </a>
+      <a class="card rv" href="privacy-policy.html#faq-full" style="text-decoration:none;color:inherit">
+        <h3>Frequently asked questions &rarr;</h3>
+        <p>Is it free? What happens to my video? What does Suggestion do? Read all answers</p>
+      </a>
     </div>
   </section>
-
-  <section class="sec narrow" id="faq">
-    <h2 class="rv">Frequently asked questions</h2>
-    <details class="rv"><summary>Is Trenndly free to use?</summary><p>Yes. Every account gets free coins each day. Analyzing a video costs 10 coins and a hook suggestion costs 5 coins.</p></details>
-    <details class="rv"><summary>What happens to my video?</summary><p>It is used only for analysis and is deleted automatically as soon as the analysis finishes.</p></details>
-    <details class="rv"><summary>What does Suggestion do?</summary><p>It scores your video's hook and, if the score is below 90, writes stronger opening lines in your video's language.</p></details>
-    <details class="rv"><summary>What is Tag Finder?</summary><p>Paste any public YouTube video link and see its thumbnail, tags, views, likes, comments, subscribers, upload time, language and description. It costs no coins and is saved in your History.</p></details>
-    <details class="rv"><summary>What video size is supported?</summary><p>Videos up to <span class="maxmb">300</span> MB in any common format.</p></details>
-    <details class="rv"><summary>Why do I need to log in?</summary><p>An account keeps the service secure and prevents misuse.</p></details>
-  </section>
-
     <footer class="foot">
     <a class="brand" href="#"><img class="logo" src="./assets/logo-Dxp94-R5.png" alt="">Trenndly</a>
-    <a href="https://zarvio.github.io/GIF/privacy-policy.html" class="foot-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+    <a href="privacy-policy.html" class="foot-link">Privacy Policy</a>
+    <a href="privacy-policy.html" class="foot-link">FAQ &amp; Features</a>
     <a href="#" class="foot-link hidden" id="fbLink">Contact us</a>
     <span>&copy; <span id="yr"></span> Trenndly. All rights reserved.</span>
   </footer>
@@ -445,14 +436,14 @@
     </div>
   </header>
   <div class="hmain">
-    <div class="note">Your history is saved for 7 days only. After that it is deleted automatically</div>
+        <div class="note"><i class="fa-regular fa-clock"></i> Saved for 7 days only, then deleted automatically</div>
     <div class="seg" id="hFilter">
-  <button class="on" data-f="tags">Analyze</button>
-  <button data-f="hook">Suggestion</button>
-  <button data-f="ct">Tag Finder</button>
-  <button data-f="cmp">Competitor</button>
-    <button data-f="pm">Video Prompt</button>
-</div>
+      <button class="on" data-f="tags"><i class="fa-solid fa-tags"></i> Analyze</button>
+      <button data-f="hook"><i class="fa-solid fa-lightbulb"></i> Suggestion</button>
+      <button data-f="ct"><i class="fa-solid fa-magnifying-glass"></i> Tag Finder</button>
+      <button data-f="cmp"><i class="fa-solid fa-chart-line"></i> Competitor</button>
+      <button data-f="pm"><i class="fa-solid fa-film"></i> Video Prompt</button>
+    </div>
     <div class="hlist" id="hList"></div>
   </div>
 </section>
@@ -522,36 +513,62 @@
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="drawer-head">
     <span class="brand"><img class="logo" src="./assets/logo-Dxp94-R5.png" alt="">Trenndly</span>
-    <button class="menu-btn" id="drawerClose" aria-label="Close menu">&times;</button>
+    <button class="menu-btn close-circle" id="drawerClose" aria-label="Close menu">&times;</button>
   </div>
 
-  <!-- Coins: sits at the top of the menu, a little apart from the links -->
-  <div class="coins" id="coinsCard" aria-live="polite">
-    <div class="coins-top">
-      <span class="coin-ic" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.2c.4-1 1.4-1.6 2.5-1.6 1.5 0 2.5.8 2.5 1.9 0 2.6-5 1.4-5 4 0 1.1 1 1.9 2.5 1.9 1.1 0 2.1-.6 2.5-1.6" stroke-width="1.6"/></svg>
-      </span>
-      <div class="coin-txt">
-        <div><b id="coinNum">--</b><span id="coinMax"></span></div>
-        <small>coins left today</small>
+  <div class="drawer-scroll">
+    <!-- Coins card -->
+    <div class="coinbox lv-ok" id="coinsCard" aria-live="polite">
+      <div class="cb-top">
+        <span class="cb-ic" aria-hidden="true"><i class="fa-solid fa-coins"></i></span>
+        <div class="cb-txt">
+          <div><b class="cb-num" id="coinNum">--</b><span class="cb-max" id="coinMax"></span></div>
+          <small>coins left today</small>
+        </div>
       </div>
+      <div class="cb-bar"><i class="cb-fill" id="cbFill"></i></div>
+      <div class="cb-warn hidden" id="cbWarn"></div>
+      <div class="cb-chips">
+        <span class="cb-chip" title="Analyze video"><i class="fa-solid fa-tags"></i><b id="costTags">10</b></span>
+        <span class="cb-chip" title="Suggestion"><i class="fa-solid fa-lightbulb"></i><b id="costHook">5</b></span>
+        <span class="cb-chip" title="Video Prompt"><i class="fa-solid fa-film"></i><b id="costPrompt">6</b></span>
+        <span class="cb-chip free" title="Tag Finder"><i class="fa-solid fa-magnifying-glass"></i>Free</span>
+      </div>
+      <div class="cb-refill" id="cbRefill"></div>
     </div>
-    <div class="coin-costs">
-      <span>Analyze video <b id="costTags">10</b></span>
-      <span>Suggestion <b id="costHook">5</b></span>
-      <span>Tag Finder <b>Free</b></span>
-      <span>Video Prompt <b id="costPrompt">6</b></span>
-      <span>Refills every day</span>
+
+    <div class="nav-h">Tools</div>
+    <nav class="drawer-nav">
+      <button class="nav-item" id="navHistory">
+        <span class="nav-ic"><i class="fa-solid fa-clock-rotate-left"></i></span>
+        <span>History</span>
+      </button>
+    </nav>
+
+    <div class="nav-h">Settings</div>
+    <nav>
+          <button class="nav-item" id="navTheme" role="switch" aria-checked="false">
+        <span class="nav-ic"><i class="fa-solid fa-moon"></i></span>
+        <span class="nav-lbl">Dark mode</span>
+        <span class="switch" aria-hidden="true"><i></i></span>
+      </button>
+  </div>
+
+  <!-- Bottom: user + links (always visible) -->
+  <div class="drawer-foot">
+    <div class="uc">
+      <span class="uc-av" id="dAvatar"></span>
+      <div class="uc-txt">
+        <div class="uc-name" id="dName"></div>
+        <div class="uc-mail" id="dMail"></div>
+      </div>
+      <button class="btn ghost sm" id="dLogout">Log out</button>
+    </div>
+    <div class="drawer-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="#" id="dFeedback">Feedback</a>
     </div>
   </div>
-  <div class="drawer-sep"></div>
-
-  <nav class="drawer-nav">
-    <button class="nav-item" id="navHistory">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      History
-    </button>
-  </nav>
 </aside>
 
 <!-- ============ FIRST-TIME TUTORIAL ============ -->
@@ -559,25 +576,33 @@
   <span class="hand-wrap" aria-hidden="true"><i class="fa-solid fa-hand-pointer hand"></i></span>
   <div class="tut-bubble" id="tutBubble"><span id="tutText"></span></div>
 </div>
-
 <!-- ============ FEEDBACK MODAL ============ -->
 <div class="overlay hidden" id="fbModal" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
   <div class="modal fb">
     <button class="x" id="fbClose" aria-label="Close">&times;</button>
+
     <div id="fbBody">
-      <h2 id="fbTitle">Share your problem</h2>
-      <p>Tell us what went wrong or how we can improve. We will reply on your account email.</p>
-      <div class="seg" id="fbType">
-        <button class="on" data-t="problem">Problem</button>
-        <button data-t="suggestion">Suggestion</button>
-        <button data-t="other">Other</button>
+      <div class="fb-head">
+        <span class="fb-ic" aria-hidden="true"><i class="fa-regular fa-comment-dots"></i></span>
+        <div>
+          <h2 id="fbTitle">Share your problem</h2>
+          <p>Tell us what went wrong or how we can improve. We reply on your account email.</p>
+        </div>
       </div>
+
+      <div class="seg fb-seg" id="fbType">
+        <button class="on" data-t="problem"><i class="fa-solid fa-bug"></i> Problem</button>
+        <button data-t="suggestion"><i class="fa-solid fa-lightbulb"></i> Suggestion</button>
+        <button data-t="other"><i class="fa-solid fa-ellipsis"></i> Other</button>
+      </div>
+
       <textarea id="fbMsg" maxlength="1000" placeholder="Describe what happened..."></textarea>
       <div class="fb-count"><span id="fbCount">0</span>/1000</div>
       <input id="fbHp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="msg" id="fbErr" role="alert"></div>
-      <button class="btn wide" id="fbSend">Send</button>
+      <button class="btn wide" id="fbSend"><i class="fa-solid fa-paper-plane"></i> Send</button>
     </div>
+
     <div id="fbDone" class="hidden">
       <div class="done-ic"></div>
       <h2>Thank you!</h2>
@@ -588,7 +613,86 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var num = function (t) { var m = String(t || "").match(/\d+/); return m ? parseInt(m[0], 10) : null; };
 
+  function coins() {
+    var n = num($("coinNum").textContent), max = num($("coinMax").textContent);
+    var card = $("coinsCard"), fill = $("cbFill"), warn = $("cbWarn");
+    if (n === null || !max) { fill.style.transform = "scaleX(0)"; return; }
+    var r = Math.max(0, Math.min(1, n / max));
+    fill.style.transform = "scaleX(" + r + ")";
+    var lv = n < 10 ? "low" : (r <= 0.5 ? "mid" : "ok");
+    card.classList.remove("lv-ok", "lv-mid", "lv-low");
+    card.classList.add("lv-" + lv);
+    card.classList.toggle("low", n < 10);
+    warn.textContent = n === 0 ? "Come back tomorrow" : "Low coins";
+    warn.classList.toggle("hidden", n >= 10);
+  }
+
+  function refill() {
+    var now = new Date(), end = new Date(now);
+    end.setHours(24, 0, 0, 0);
+    var m = Math.max(1, Math.round((end - now) / 60000));
+    $("cbRefill").textContent = "Refills in " + Math.floor(m / 60) + "h " + (m % 60) + "m";
+  }
+
+  function user() {
+    var av = $("avatarBtn"), d = $("dAvatar");
+    d.textContent = av.textContent;
+    d.style.backgroundImage = av.style.backgroundImage || getComputedStyle(av).backgroundImage;
+    var mail = $("popEmail").textContent.trim();
+    $("dMail").textContent = mail;
+    $("dName").textContent = mail ? mail.split("@")[0] : "";
+  }
+
+
+
+  function active() {
+    $("navHistory").classList.toggle("active", !$("historyView").classList.contains("hidden"));
+  }
+
+  var opts = { attributes: true, childList: true, characterData: true, subtree: true };
+
+  $("dLogout").onclick = function () { $("drawerClose").click(); $("logoutBtn").click(); };
+  $("dFeedback").onclick = function (e) { e.preventDefault(); $("drawerClose").click(); $("fbOpen").click(); };
+  var mo = new MutationObserver(function () { coins(); user(); active(); });
+  ["coinNum", "coinMax", "popEmail"].forEach(function (id) {
+    mo.observe($(id), opts);
+  });
+  mo.observe($("historyView"), { attributes: true });
+  mo.observe($("avatarBtn"), { attributes: true, childList: true });
+  coins(); user(); refill(); active();
+  setInterval(refill, 60000);
+})();
+</script>
+<script>
+(function () {
+  var m = document.getElementById("fbModal");
+  var pass = false;
+
+  function guard(el, test) {
+    el.addEventListener("click", function (e) {
+      if (pass) return;                          // second (real) click: let main.js handle it
+      if (test && !test(e)) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (m.classList.contains("closing")) return;
+      m.classList.add("closing");
+      setTimeout(function () {
+        m.classList.remove("closing");
+        pass = true; el.click(); pass = false;  // now really close
+      }, 220);
+    }, true);
+  }
+
+  guard(document.getElementById("fbClose"));
+  guard(document.getElementById("fbOk"));
+  guard(m, function (e) { return e.target === m; }); // tap on dark background
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
