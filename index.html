@@ -18,10 +18,9 @@
 <link rel="apple-touch-icon" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-<link rel="stylesheet" href="winter.css">
-  <script type="module" crossorigin src="./assets/main-0U1aH--t.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-CQf55TwB.css">
-  <link rel="stylesheet" crossorigin href="./assets/style-DEv8K4ix.css">
+  <script type="module" crossorigin src="./assets/main-pOewZS4_.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-B_EUd7L7.css">
+  <link rel="stylesheet" crossorigin href="./assets/style-B0svpLq0.css">
 </head>
 <body>
 
@@ -360,7 +359,10 @@
 <!-- Channel Planner result -->
 <div class="ct-body hidden" id="planBody">
   <div class="box">
-    <header><h3>Your upload plan<small id="planInfo"></small></h3></header>
+        <header class="plan-head">
+      <img class="plan-logo hidden" id="planLogo" alt="" referrerpolicy="no-referrer">
+      <h3>Your upload plan<small id="planInfo"></small></h3>
+    </header>
     <p class="hcur" id="planMsg"></p>
     <p class="chip-hint" id="planTip"></p>
   </div>
@@ -524,7 +526,7 @@
         <span class="cb-ic" aria-hidden="true"><i class="fa-solid fa-coins"></i></span>
         <div class="cb-txt">
           <div><b class="cb-num" id="coinNum">--</b><span class="cb-max" id="coinMax"></span></div>
-          <small>coins left today</small>
+          <small>coins left</small>
         </div>
       </div>
       <div class="cb-bar"><i class="cb-fill" id="cbFill"></i></div>
@@ -694,10 +696,60 @@
   guard(document.getElementById("fbOk"));
   guard(m, function (e) { return e.target === m; }); // tap on dark background
 })();
+
+</script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var EYE = '<i class="fa-regular fa-eye"></i>', OFF = '<i class="fa-regular fa-eye-slash"></i>';
+
+  function wrap(inp) {
+    var w = document.createElement("div");
+    w.className = "pw-wrap";
+    inp.parentNode.insertBefore(w, inp);
+    w.appendChild(inp);
+    return w;
+  }
+  function eyeBtn(inp) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "pw-eye";
+    b.innerHTML = EYE; b.setAttribute("aria-label", "Show password");
+    inp.parentNode.appendChild(b);
+    return b;
+  }
+  function setShow(inputs, on, btn, chk) {
+    inputs.forEach(function (i) { i.type = on ? "text" : "password"; });
+    if (btn) { btn.innerHTML = on ? OFF : EYE; btn.setAttribute("aria-label", on ? "Hide password" : "Show password"); }
+    if (chk) chk.checked = on;
+  }
+
+  /* Login / Sign up: eye inside the box */
+  var a = $("aPass");
+  if (a) {
+    wrap(a);
+    var ab = eyeBtn(a);
+    ab.onclick = function () { setShow([a], a.type === "password", ab); };
+  }
+
+  /* Complete profile: eye on Password, checkbox under Confirm password, both show/hide both */
+  var p1 = $("sPass"), p2 = $("sPass2");
+  if (p1 && p2) {
+    wrap(p1);
+    var sb = eyeBtn(p1);
+    var w2 = wrap(p2);
+    var lab = document.createElement("label");
+    lab.className = "pw-show";
+    lab.innerHTML = '<input type="checkbox" id="pwShow"><span>Show password</span>';
+    w2.parentNode.insertBefore(lab, w2.nextSibling);
+    var chk = lab.querySelector("input");
+    var group = [p1, p2];
+    sb.onclick = function () { setShow(group, p1.type === "password", sb, chk); };
+    chk.onchange = function () { setShow(group, chk.checked, sb, chk); };
+  }
+})();
 </script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="winter.js" defer></script>
 </body>
 </html>
