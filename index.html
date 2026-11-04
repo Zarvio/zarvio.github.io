@@ -18,8 +18,8 @@
 <link rel="apple-touch-icon" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-  <script type="module" crossorigin src="./assets/main-pOewZS4_.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-B_EUd7L7.css">
+  <script type="module" crossorigin src="./assets/main-C4juaoxO.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-Bb795wk2.css">
   <link rel="stylesheet" crossorigin href="./assets/style-B0svpLq0.css">
 </head>
 <body>
@@ -71,21 +71,24 @@
     <p class="sub" id="heroSub">Tags, hashtags and titles for YouTube</p>
 
     <!-- Mode switch: Suggestion (hook check) <-> Tags & Hashtags. The label swaps when you click it. -->
-    <div class="modebar">
-      <button class="modebtn" id="modeBtn" type="button" aria-label="Switch mode">
-        <span class="mode-ic" id="modeIc" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
-        <span id="modeLbl">Suggestion</span>
-      </button>
-      <button class="modebtn" id="ctBtn" type="button" aria-label="Competitor tools">
-  <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
-  <span id="ctLbl">Competitor</span>
-        <button class="modebtn" id="pBtn" type="button" aria-label="AI video prompt">
-        <span class="mode-ic" id="pIc" aria-hidden="true"><i class="fa-solid fa-film"></i></span>
-        <span id="pLbl">Video Prompt</span>
-      </button>
-</button>
-    </div>
-
+<div class="modebar">
+  <button class="modebtn" id="modeBtn" type="button" aria-label="Switch mode">
+    <span class="mode-ic" id="modeIc" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
+    <span id="modeLbl">Suggestion</span>
+  </button>
+  <button class="modebtn" id="ctBtn" type="button" aria-label="Competitor tools">
+    <span class="mode-ic" id="ctIc" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
+    <span id="ctLbl">Competitor</span>
+  </button>
+  <button class="modebtn" id="wmBtn" type="button" aria-label="Watermark Remover">
+    <span class="mode-ic" id="wmIc" aria-hidden="true"><i class="fa-solid fa-eraser"></i></span>
+    <span id="wmLbl">Watermark</span>
+  </button>
+  <button class="modebtn" id="pBtn" type="button" aria-label="AI video prompt">
+    <span class="mode-ic" id="pIc" aria-hidden="true"><i class="fa-solid fa-film"></i></span>
+    <span id="pLbl">Video Prompt</span>
+  </button>
+</div>
     <div class="drop" id="drop">
       <input type="file" id="file" accept="video/*" class="hidden">
       <div class="drop-empty" id="dropEmpty">
@@ -137,12 +140,39 @@
     </div>
   </div>
 </div>
-<!-- Saved mode ko page dikhne se pehle hi lagao, taaki load par heading aur boxes na badlein -->
+<!-- Watermark Remover box -->
+<div class="drop wm-drop hidden" id="wmInput">
+  <input type="file" id="wmFile" accept="video/*" class="hidden">
+  
+  <div class="drop-empty" id="wmDropEmpty">
+    <p id="wmDropText">Drag and drop a Gemini video here to remove watermark</p>
+    <button class="btn dark" id="wmPick">Choose video</button>
+  </div>
+  
+  <div class="fname" id="wmFname"></div>
+  <div class="preview" id="wmPreviewBox"></div>
+  
+  <!-- Loader -->
+  <div id="wmLoader" class="hidden" style="text-align: center; padding: 30px;">
+    <div class="loader-card" style="display:inline-block;">
+      <p style="font-weight: bold; color: var(--green);">Removing watermark...</p>
+      <p style="font-size: 14px; margin-top: 5px;">Please wait, this happens directly in your browser.</p>
+    </div>
+  </div>
+
+  <!-- Download Link -->
+  <div id="wmDone" class="hidden" style="text-align: center; padding: 20px;">
+    <h3 style="color: var(--green); margin-bottom: 15px;">Watermark Removed Successfully!</h3>
+        <p class="wm-note"><i class="fa-solid fa-triangle-exclamation"></i> Note: Trenndly removes only the visible watermark. It does not remove SynthID, the invisible mark that AI tools add inside the video</p>
+    <a id="wmDownloadBtn" class="btn dark" download="cleaned-video.mp4" href="#">Download Video</a>
+    <button class="btn ghost" id="wmResetBtn" style="margin-left: 10px;">Remove another</button>
+  </div>
+</div>
 <script>
 (function () {
   try {
     var m = localStorage.getItem("trendly_mode");
-    if (m !== "hook" && m !== "ct" && m !== "prompt") return;
+    if (m !== "hook" && m !== "ct" && m !== "prompt" && m !== "wm") return;
     var FILM = '<i class="fa-solid fa-film"></i>', HASH = '<i class="fa-solid fa-hashtag"></i>',
         BULB = '<i class="fa-solid fa-lightbulb"></i>', CHART = '<i class="fa-solid fa-chart-line"></i>';
     var T = {
@@ -151,7 +181,9 @@
       ct:   { t: "Compare your video with a competitor", s: "Find the tags your competitor is using",
               tg: "Suggestion", ti: BULB, cl: "Tags & Hashtags", ci: HASH, pl: "Video Prompt", pi: FILM },
       prompt: { t: "Turn any idea into an AI video prompt", s: "Add a video, an idea, or both",
-              tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Tags & Hashtags", pi: HASH }
+              tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Tags & Hashtags", pi: HASH },
+      wm:   { t: "Remove watermark from your video", s: "Clean, fast and invisible. Powered by Trenndly AI.",
+              tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Video Prompt", pi: FILM }
     }[m];
     var g = function (i) { return document.getElementById(i); };
     g("heroTitle").textContent = T.t;
@@ -159,7 +191,13 @@
     g("modeLbl").textContent = T.tg;  g("modeIc").innerHTML = T.ti;
     g("ctLbl").textContent = T.cl;    g("ctIc").innerHTML = T.ci;
     g("pLbl").textContent = T.pl;     g("pIc").innerHTML = T.pi;
+        if (m === "wm") { g("wmLbl").textContent = "Tags & Hashtags"; g("wmIc").innerHTML = HASH; }
     if (m === "hook") g("modeBtn").classList.add("is-hook");
+    if (m === "wm") {
+      g("wmBtn").classList.add("is-hook");
+      g("drop").classList.add("hidden");
+      g("wmInput").classList.remove("hidden");
+    }
     if (m === "prompt") {
       g("pBtn").classList.add("is-hook");
       g("drop").classList.add("hidden");
@@ -172,7 +210,7 @@
       var c = JSON.parse(localStorage.getItem("trendly_ct") || "{}");
       if (c.sub === "tags" || c.sub === "plan") {
         var P = {
-          tags: { t: "Find the tags of any YouTube video", s: "Paste a link to see its tags and stats", p: "https://youtube.com/watch?v=…" },
+          tags: { t: "Find the tags of any YouTube video", s: "Paste a link to see its tags and stats", p: "https://youtube.com/watch?v=\u2026" },
           plan: { t: "Plan the best days to upload videos", s: "Find the best day to upload your video", p: "Channel link or @handle" }
         }[c.sub];
         g("heroTitle").textContent = P.t;
@@ -291,6 +329,14 @@
                  <div class="box hidden" id="pmSheetBox">
         <header><h3>Step 1: Reference image<small>one image with everything</small></h3><button class="btn sm ghost" data-copy="pmSheet">Copy</button></header>
         <textarea id="pmSheet" readonly></textarea>
+      </div>
+      <div class="box hidden" id="pmFirstBox">
+        <header><h3>First frame image<small>how your video starts</small></h3><button class="btn sm ghost" data-copy="pmFirst">Copy</button></header>
+        <textarea id="pmFirst" readonly></textarea>
+      </div>
+      <div class="box hidden" id="pmLastBox">
+        <header><h3>Last frame image<small>how your video ends</small></h3><button class="btn sm ghost" data-copy="pmLastImg">Copy</button></header>
+        <textarea id="pmLastImg" readonly></textarea>
       </div>
       <div class="pm-guide hidden" id="pmGuide">
         <h3>How to use these prompts</h3>
@@ -506,7 +552,7 @@
 <div class="overlay hidden" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
   <div class="modal">
     <h2 id="mTitle">Please log in first</h2>
-    <p>You need to be logged in to analyze your video.</p>
+    <p>You need to be logged in to use this feature</p>
     <button class="btn wide" id="modalOk">OK</button>
   </div>
 </div>
@@ -713,6 +759,7 @@
   function eyeBtn(inp) {
     var b = document.createElement("button");
     b.type = "button"; b.className = "pw-eye";
+        b.addEventListener("mousedown", function (e) { e.preventDefault(); });   
     b.innerHTML = EYE; b.setAttribute("aria-label", "Show password");
     inp.parentNode.appendChild(b);
     return b;
@@ -731,11 +778,10 @@
     ab.onclick = function () { setShow([a], a.type === "password", ab); };
   }
 
-  /* Complete profile: eye on Password, checkbox under Confirm password, both show/hide both */
+  /* Complete profile: eye nahi, sirf checkbox under Confirm password (dono boxes show/hide) */
   var p1 = $("sPass"), p2 = $("sPass2");
   if (p1 && p2) {
     wrap(p1);
-    var sb = eyeBtn(p1);
     var w2 = wrap(p2);
     var lab = document.createElement("label");
     lab.className = "pw-show";
@@ -743,8 +789,7 @@
     w2.parentNode.insertBefore(lab, w2.nextSibling);
     var chk = lab.querySelector("input");
     var group = [p1, p2];
-    sb.onclick = function () { setShow(group, p1.type === "password", sb, chk); };
-    chk.onchange = function () { setShow(group, chk.checked, sb, chk); };
+    chk.onchange = function () { setShow(group, chk.checked, null, chk); };
   }
 })();
 </script>
