@@ -5,176 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Account action | Trenndly</title>
+<script>try{var th=localStorage.getItem("trendly_theme");if(th==="dark"||th==="light")document.documentElement.dataset.theme=th}catch(e){}</script>
+<link rel="icon" type="image/jpeg" href="../../assets/logo-Bx-P9irx.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#F4F3FB; --card:#FFFFFF; --ink:#1B1740; --muted:#625E85; --line:#E1DEF2;
-  --brand:#5B3DF5; --brand-ink:#FFFFFF; --ok:#0E8F6E; --ok-bg:#E3F6EF; --err:#C2294B; --err-bg:#FCE8ED;
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#120F2B; --card:#1C1840; --ink:#F1EFFF; --muted:#A9A5CF; --line:#332E63;
-    --brand:#8A74FF; --brand-ink:#120F2B; --ok:#4FD1A8; --ok-bg:#12372F; --err:#FF7B97; --err-bg:#3F1927;}
-}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;line-height:1.55}
-.brand{font-weight:800;font-size:28px;letter-spacing:-.03em;margin-bottom:20px;color:var(--ink);text-decoration:none}
-.brand span{color:var(--brand)}
-.card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:36px 28px;text-align:center}
-.icon{width:64px;height:64px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;font-size:30px;font-weight:800}
-.icon.ok{background:var(--ok-bg);color:var(--ok)}
-.icon.err{background:var(--err-bg);color:var(--err)}
-.icon.info{background:var(--line);color:var(--brand)}
-h1{font-size:23px;line-height:1.25;margin:0 0 10px;letter-spacing:-.02em}
-p{margin:0 0 22px;color:var(--muted);font-size:15px}
-.btn{display:inline-block;width:100%;border:0;border-radius:12px;padding:14px 18px;background:var(--brand);color:var(--brand-ink);
-  font:inherit;font-weight:700;font-size:16px;cursor:pointer;text-decoration:none}
-.btn:disabled{opacity:.6;cursor:wait}
-.btn:focus-visible,input:focus-visible,.toggle:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
-.link{display:inline-block;margin-top:14px;color:var(--muted);font-size:14px}
-form{text-align:left}
-label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
-.field{position:relative;margin-bottom:6px}
-input{width:100%;padding:13px 70px 13px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
-.toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--brand);font:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:6px 8px;border-radius:8px}
-.hint{font-size:13px;color:var(--muted);margin:0 0 18px}
-.msg{font-size:14px;color:var(--err);margin:0 0 14px;min-height:0}
-.spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:6px auto 18px;animation:s 0.9s linear infinite}
-@keyframes s{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.spin{animation:none}}
-footer{margin-top:22px;font-size:13px;color:var(--muted)}
-footer a{color:var(--muted)}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>:root{--bg:#fff;--surface:#f7f7f8;--ink:#0d0d0d;--muted:#6b6b6b;--line:#e5e5e5;--btn:#0d0d0d;--btn-ink:#fff;--green:#10a37f;--green-ink:#0b7d61;--danger:#d92d20;--shadow-md:0 8px 28px #0000001a;--r-sm:10px;--r-md:16px;--r-lg:22px;--r-pill:999px;--ease:cubic-bezier(.2,.8,.2,1);--font:"Inter",ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;--lightningcss-light:initial;--lightningcss-dark: ;color-scheme:light dark}@media (prefers-color-scheme:dark){:root{--lightningcss-light: ;--lightningcss-dark:initial}:root:not([data-theme=light]){--bg:#212121;--surface:#2a2a2a;--ink:#ececec;--muted:#a1a1a1;--line:#3a3a3a;--btn:#ececec;--btn-ink:#0d0d0d;--green-ink:#19c39a;--danger:#ff6b5e;--shadow-md:0 8px 28px #00000073}}:root[data-theme=dark]{--lightningcss-light: ;--lightningcss-dark:initial;color-scheme:dark;--bg:#212121;--surface:#2a2a2a;--ink:#ececec;--muted:#a1a1a1;--line:#3a3a3a;--btn:#ececec;--btn-ink:#0d0d0d;--green-ink:#19c39a;--danger:#ff6b5e;--shadow-md:0 8px 28px #00000073}:root[data-theme=light]{--lightningcss-light:initial;--lightningcss-dark: ;color-scheme:light}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html{-webkit-text-size-adjust:100%}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased;flex-direction:column;min-height:100dvh;display:flex}h1{letter-spacing:-.02em;margin:0;font-weight:600}.hidden{display:none!important}:focus-visible{outline:2px solid var(--green);outline-offset:2px}.top{padding:18px 24px}.brand{color:var(--ink);letter-spacing:-.02em;align-items:center;gap:9px;font-size:19px;font-weight:600;text-decoration:none;display:inline-flex}.logo{object-fit:contain;border-radius:7px;width:28px;height:28px;display:block}.wrap{flex:1;justify-content:center;align-items:flex-start;padding:5vh 20px 40px;display:flex}.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);text-align:center;width:100%;max-width:420px;animation:zoom .3s var(--ease) both;padding:34px 26px}@keyframes zoom{0%{opacity:0;transform:translateY(12px)scale(.97)}}@keyframes spin{to{transform:rotate(360deg)}}.ic{color:#fff;border-radius:50%;justify-content:center;align-items:center;width:58px;height:58px;margin:0 auto 16px;font-size:26px;font-weight:600;display:flex;position:relative}.ic.ok{background:var(--green)}.ic.ok:after{content:"";border:4px solid #fff;border-width:0 4px 4px 0;width:12px;height:22px;position:absolute;top:11px;left:21px;transform:rotate(45deg)}.ic.err{background:var(--danger)}.ic.info{background:var(--bg);border:1px solid var(--line);color:var(--ink)}.spin{border:3px solid var(--line);border-top-color:var(--green);border-radius:50%;width:34px;height:34px;margin:4px auto 18px;animation:.8s linear infinite spin}h1{margin-bottom:8px;font-size:22px}.card p{color:var(--muted);word-break:break-word;margin:0 0 22px;font-size:15px}.btn{background:var(--btn);width:100%;color:var(--btn-ink);border:1px solid var(--btn);border-radius:var(--r-pill);font:inherit;cursor:pointer;transition:transform .18s var(--ease),opacity .18s;justify-content:center;align-items:center;padding:14px;font-size:15px;font-weight:500;line-height:1.2;text-decoration:none;display:inline-flex}.btn:disabled{opacity:.35;cursor:not-allowed}.btn:active:not(:disabled){transform:scale(.97)}@media (hover:hover){.btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px)}}form{text-align:left}label{margin-bottom:8px;font-size:14px;font-weight:500;display:block}.field{position:relative}input{border-radius:var(--r-pill);border:1px solid var(--line);background:var(--bg);width:100%;color:var(--ink);font:inherit;padding:14px 74px 14px 18px;font-size:16px;transition:border-color .2s,box-shadow .2s}input:focus{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 18%,transparent);outline:none}.toggle{color:var(--green-ink);font:inherit;cursor:pointer;border-radius:var(--r-pill);background:0 0;border:0;padding:8px 12px;font-size:14px;font-weight:500;position:absolute;top:50%;right:8px;transform:translateY(-50%)}.hint{text-align:left;margin:10px 0 18px!important;font-size:13px!important}.msg{text-align:left;min-height:0;color:var(--danger)!important;margin:0 0 14px!important;font-size:13px!important}.msg:empty{display:none}.foot{padding:22px 20px;padding-bottom:max(22px,env(safe-area-inset-bottom));border-top:1px solid var(--line);color:var(--muted);flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 14px;font-size:13px;display:flex}.foot a{color:var(--muted);text-decoration:none}@media (hover:hover){.foot a:hover{color:var(--ink)}}@media (prefers-reduced-motion:reduce){*,:before,:after{transition:none!important;animation:none!important}}</style>
+  <script type="module" crossorigin src="../../assets/authAction-DkttfGfY.js"></script>
+  <link rel="modulepreload" crossorigin href="../../assets/modulepreload-polyfill-axk1WA_r.js">
 </head>
 <body>
-<a class="brand" href="/">Trenn<span>dly</span></a>
-<main class="card" id="card" aria-live="polite">
-  <div class="spin" role="status" aria-label="Loading"></div>
-  <h1>Checking your link</h1>
-  <p>This will only take a moment.</p>
-</main>
-<footer><a href="/privacy-policy.html">Privacy</a> &nbsp;·&nbsp; <a href="/">Need help?</a></footer>
+<div class="top"><a class="brand" href="/"><img class="logo" src="data:image/jpeg;base64,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" alt="">Trenndly</a></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+<div class="wrap">
+  <main class="card" id="card" aria-live="polite">
+    <div class="spin" role="status" aria-label="Loading"></div>
+    <h1>Checking your link</h1>
+    <p>This will only take a moment.</p>
+  </main>
+</div>
 
-/* ====== STEP 1: Firebase Console > Project settings > Your apps > Web app se config yahan paste karo ====== */
-const firebaseConfig = {
-  apiKey: "AIzaSyDUefeJbHKIAs-l3zvFlGaas6VD63vv4kI",
-  authDomain: "inspire4ever-c60ad.firebaseapp.com",
-  projectId: "inspire4ever-c60ad",
-  appId: "1:125014633127:web:d29e4c37628ab637f40982"
-};
-/* ========================================================================================================= */
-
-const SITE = "https://trenndly.me";
-const LOGIN_URL = SITE + "/";
-
-const auth = getAuth(initializeApp(firebaseConfig));
-const card = document.getElementById("card");
-const q = new URLSearchParams(location.search);
-const mode = q.get("mode"), oobCode = q.get("oobCode"), continueUrl = q.get("continueUrl");
-
-// Sirf apni site ka continueUrl allow (open redirect se bachne ke liye)
-function safeContinue() {
-  try { const u = new URL(continueUrl); if (u.origin === SITE) return u.href; } catch (e) {}
-  return LOGIN_URL;
-}
-
-function show(type, symbol, title, text, btnLabel, btnHref) {
-  card.innerHTML = "";
-  const icon = el("div", "icon " + type, symbol);
-  const h = el("h1", "", title);
-  const p = el("p", "", text);
-  card.append(icon, h, p);
-  if (btnLabel) { const a = el("a", "btn", btnLabel); a.href = btnHref; card.append(a); }
-}
-function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
-
-function errorText(e) {
-  switch (e && e.code) {
-    case "auth/expired-action-code": return "This link has expired. Please request a new one from the app.";
-    case "auth/invalid-action-code": return "This link is invalid or has already been used. Please request a new one.";
-    case "auth/user-disabled": return "This account has been disabled. Contact support for help.";
-    case "auth/user-not-found": return "We could not find an account for this link.";
-    case "auth/weak-password": return "Password is too weak. Use at least 6 characters.";
-    default: return "Something went wrong. Please try again or request a new link.";
-  }
-}
-function fail(e) { show("err", "!", "Link not working", errorText(e), "Back to Trenndly", SITE); }
-
-async function handleVerifyEmail() {
-  try {
-    await applyActionCode(auth, oobCode);
-    show("ok", "✓", "Email verified", "Your email is confirmed. You can now log in and use Trenndly.", "Continue to Trenndly", safeContinue());
-  } catch (e) { fail(e); }
-}
-
-async function handleRecoverEmail() {
-  try {
-    const info = await checkActionCode(auth, oobCode);
-    const restored = info.data.email;
-    await applyActionCode(auth, oobCode);
-    show("ok", "✓", "Email restored", "Your account email is back to " + restored + ". If you did not request the change, reset your password now.", "Go to login", LOGIN_URL);
-  } catch (e) { fail(e); }
-}
-
-async function handleChangeEmail() {
-  try {
-    await applyActionCode(auth, oobCode);
-    show("ok", "✓", "Email updated", "Your new email address is confirmed. Log in again with it.", "Go to login", LOGIN_URL);
-  } catch (e) { fail(e); }
-}
-
-async function handleResetPassword() {
-  let email;
-  try { email = await verifyPasswordResetCode(auth, oobCode); } catch (e) { return fail(e); }
-
-  card.innerHTML = "";
-  card.append(el("div", "icon info", "🔒"), el("h1", "", "Set a new password"), el("p", "", "For " + email));
-  const form = document.createElement("form");
-  form.innerHTML =
-    '<label for="pw">New password</label>' +
-    '<div class="field"><input id="pw" type="password" autocomplete="new-password" minlength="6" required>' +
-    '<button type="button" class="toggle" aria-label="Show password">Show</button></div>' +
-    '<p class="hint">Use at least 6 characters. 8 or more is safer.</p>' +
-    '<p class="msg" id="msg" role="alert"></p>' +
-    '<button class="btn" type="submit">Save new password</button>';
-  card.append(form);
-
-  const pw = form.querySelector("#pw"), tg = form.querySelector(".toggle"), msg = form.querySelector("#msg"), btn = form.querySelector(".btn");
-  tg.addEventListener("click", () => {
-    const hidden = pw.type === "password";
-    pw.type = hidden ? "text" : "password";
-    tg.textContent = hidden ? "Hide" : "Show";
-    tg.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
-  });
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault(); msg.textContent = "";
-    if (pw.value.length < 6) { msg.textContent = "Password must be at least 6 characters."; return; }
-    btn.disabled = true; btn.textContent = "Saving...";
-    try {
-      await confirmPasswordReset(auth, oobCode, pw.value);
-      show("ok", "✓", "Password changed", "Your password has been updated. Log in with your new password.", "Go to login", LOGIN_URL);
-    } catch (e) {
-      btn.disabled = false; btn.textContent = "Save new password";
-      msg.textContent = errorText(e);
-    }
-  });
-}
-
-if (!mode || !oobCode) {
-  show("err", "!", "Link incomplete", "This page opens from the link in your email. Please use that link again.", "Back to Trenndly", SITE);
-} else if (mode === "verifyEmail") handleVerifyEmail();
-else if (mode === "resetPassword") handleResetPassword();
-else if (mode === "recoverEmail") handleRecoverEmail();
-else if (mode === "verifyAndChangeEmail") handleChangeEmail();
-else show("err", "!", "Unknown action", "We do not recognise this request.", "Back to Trenndly", SITE);
-</script>
+<footer class="foot">
+  <a href="/privacy-policy.html">Privacy Policy</a>
+  <span>&copy; <span id="yr"></span> Trenndly. All rights reserved.</span>
+</footer>
+
 </body>
 </html>
