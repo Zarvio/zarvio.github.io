@@ -1,1 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Account action | Trenndly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F3FB; --card:#FFFFFF; --ink:#1B1740; --muted:#625E85; --line:#E1DEF2;
+  --brand:#5B3DF5; --brand-ink:#FFFFFF; --ok:#0E8F6E; --ok-bg:#E3F6EF; --err:#C2294B; --err-bg:#FCE8ED;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#120F2B; --card:#1C1840; --ink:#F1EFFF; --muted:#A9A5CF; --line:#332E63;
+    --brand:#8A74FF; --brand-ink:#120F2B; --ok:#4FD1A8; --ok-bg:#12372F; --err:#FF7B97; --err-bg:#3F1927;}
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;line-height:1.55}
+.brand{font-weight:800;font-size:28px;letter-spacing:-.03em;margin-bottom:20px;color:var(--ink);text-decoration:none}
+.brand span{color:var(--brand)}
+.card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:36px 28px;text-align:center}
+.icon{width:64px;height:64px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;font-size:30px;font-weight:800}
+.icon.ok{background:var(--ok-bg);color:var(--ok)}
+.icon.err{background:var(--err-bg);color:var(--err)}
+.icon.info{background:var(--line);color:var(--brand)}
+h1{font-size:23px;line-height:1.25;margin:0 0 10px;letter-spacing:-.02em}
+p{margin:0 0 22px;color:var(--muted);font-size:15px}
+.btn{display:inline-block;width:100%;border:0;border-radius:12px;padding:14px 18px;background:var(--brand);color:var(--brand-ink);
+  font:inherit;font-weight:700;font-size:16px;cursor:pointer;text-decoration:none}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn:focus-visible,input:focus-visible,.toggle:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.link{display:inline-block;margin-top:14px;color:var(--muted);font-size:14px}
+form{text-align:left}
+label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+.field{position:relative;margin-bottom:6px}
+input{width:100%;padding:13px 70px 13px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--brand);font:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:6px 8px;border-radius:8px}
+.hint{font-size:13px;color:var(--muted);margin:0 0 18px}
+.msg{font-size:14px;color:var(--err);margin:0 0 14px;min-height:0}
+.spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:6px auto 18px;animation:s 0.9s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+footer{margin-top:22px;font-size:13px;color:var(--muted)}
+footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<a class="brand" href="/">Trenn<span>dly</span></a>
+<main class="card" id="card" aria-live="polite">
+  <div class="spin" role="status" aria-label="Loading"></div>
+  <h1>Checking your link</h1>
+  <p>This will only take a moment.</p>
+</main>
+<footer><a href="/privacy-policy.html">Privacy</a> &nbsp;·&nbsp; <a href="/">Need help?</a></footer>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+/* ====== STEP 1: Firebase Console > Project settings > Your apps > Web app se config yahan paste karo ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDUefeJbHKIAs-l3zvFlGaas6VD63vv4kI",
+  authDomain: "inspire4ever-c60ad.firebaseapp.com",
+  projectId: "inspire4ever-c60ad",
+  appId: "1:125014633127:web:d29e4c37628ab637f40982"
+};
+/* ========================================================================================================= */
+
+const SITE = "https://trenndly.me";
+const LOGIN_URL = SITE + "/";
+
+const auth = getAuth(initializeApp(firebaseConfig));
+const card = document.getElementById("card");
+const q = new URLSearchParams(location.search);
+const mode = q.get("mode"), oobCode = q.get("oobCode"), continueUrl = q.get("continueUrl");
+
+// Sirf apni site ka continueUrl allow (open redirect se bachne ke liye)
+function safeContinue() {
+  try { const u = new URL(continueUrl); if (u.origin === SITE) return u.href; } catch (e) {}
+  return LOGIN_URL;
+}
+
+function show(type, symbol, title, text, btnLabel, btnHref) {
+  card.innerHTML = "";
+  const icon = el("div", "icon " + type, symbol);
+  const h = el("h1", "", title);
+  const p = el("p", "", text);
+  card.append(icon, h, p);
+  if (btnLabel) { const a = el("a", "btn", btnLabel); a.href = btnHref; card.append(a); }
+}
+function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
+
+function errorText(e) {
+  switch (e && e.code) {
+    case "auth/expired-action-code": return "This link has expired. Please request a new one from the app.";
+    case "auth/invalid-action-code": return "This link is invalid or has already been used. Please request a new one.";
+    case "auth/user-disabled": return "This account has been disabled. Contact support for help.";
+    case "auth/user-not-found": return "We could not find an account for this link.";
+    case "auth/weak-password": return "Password is too weak. Use at least 6 characters.";
+    default: return "Something went wrong. Please try again or request a new link.";
+  }
+}
+function fail(e) { show("err", "!", "Link not working", errorText(e), "Back to Trenndly", SITE); }
+
+async function handleVerifyEmail() {
+  try {
+    await applyActionCode(auth, oobCode);
+    show("ok", "✓", "Email verified", "Your email is confirmed. You can now log in and use Trenndly.", "Continue to Trenndly", safeContinue());
+  } catch (e) { fail(e); }
+}
+
+async function handleRecoverEmail() {
+  try {
+    const info = await checkActionCode(auth, oobCode);
+    const restored = info.data.email;
+    await applyActionCode(auth, oobCode);
+    show("ok", "✓", "Email restored", "Your account email is back to " + restored + ". If you did not request the change, reset your password now.", "Go to login", LOGIN_URL);
+  } catch (e) { fail(e); }
+}
+
+async function handleChangeEmail() {
+  try {
+    await applyActionCode(auth, oobCode);
+    show("ok", "✓", "Email updated", "Your new email address is confirmed. Log in again with it.", "Go to login", LOGIN_URL);
+  } catch (e) { fail(e); }
+}
+
+async function handleResetPassword() {
+  let email;
+  try { email = await verifyPasswordResetCode(auth, oobCode); } catch (e) { return fail(e); }
+
+  card.innerHTML = "";
+  card.append(el("div", "icon info", "🔒"), el("h1", "", "Set a new password"), el("p", "", "For " + email));
+  const form = document.createElement("form");
+  form.innerHTML =
+    '<label for="pw">New password</label>' +
+    '<div class="field"><input id="pw" type="password" autocomplete="new-password" minlength="6" required>' +
+    '<button type="button" class="toggle" aria-label="Show password">Show</button></div>' +
+    '<p class="hint">Use at least 6 characters. 8 or more is safer.</p>' +
+    '<p class="msg" id="msg" role="alert"></p>' +
+    '<button class="btn" type="submit">Save new password</button>';
+  card.append(form);
+
+  const pw = form.querySelector("#pw"), tg = form.querySelector(".toggle"), msg = form.querySelector("#msg"), btn = form.querySelector(".btn");
+  tg.addEventListener("click", () => {
+    const hidden = pw.type === "password";
+    pw.type = hidden ? "text" : "password";
+    tg.textContent = hidden ? "Hide" : "Show";
+    tg.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
+  });
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault(); msg.textContent = "";
+    if (pw.value.length < 6) { msg.textContent = "Password must be at least 6 characters."; return; }
+    btn.disabled = true; btn.textContent = "Saving...";
+    try {
+      await confirmPasswordReset(auth, oobCode, pw.value);
+      show("ok", "✓", "Password changed", "Your password has been updated. Log in with your new password.", "Go to login", LOGIN_URL);
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Save new password";
+      msg.textContent = errorText(e);
+    }
+  });
+}
+
+if (!mode || !oobCode) {
+  show("err", "!", "Link incomplete", "This page opens from the link in your email. Please use that link again.", "Back to Trenndly", SITE);
+} else if (mode === "verifyEmail") handleVerifyEmail();
+else if (mode === "resetPassword") handleResetPassword();
+else if (mode === "recoverEmail") handleRecoverEmail();
+else if (mode === "verifyAndChangeEmail") handleChangeEmail();
+else show("err", "!", "Unknown action", "We do not recognise this request.", "Back to Trenndly", SITE);
+</script>
+</body>
+</html>
