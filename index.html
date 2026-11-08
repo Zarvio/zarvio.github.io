@@ -17,10 +17,10 @@
 <link rel="apple-touch-icon" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-  <script type="module" crossorigin src="./assets/main-Cssi3s_X.js"></script>
+  <script type="module" crossorigin src="./assets/main-CniKT7Tu.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-axk1WA_r.js">
-  <link rel="stylesheet" crossorigin href="./assets/main-n2J0RAM6.css">
-  <link rel="stylesheet" crossorigin href="./assets/style-Cv7GCYlr.css">
+  <link rel="stylesheet" crossorigin href="./assets/main-HNrVrHSX.css">
+  <link rel="stylesheet" crossorigin href="./assets/style-vw5nGxsH.css">
 </head>
 <body>
 
@@ -101,9 +101,14 @@
 </div>
     <div class="drop" id="drop">
       <input type="file" id="file" accept="video/*" class="hidden">
-      <div class="drop-empty" id="dropEmpty">
-        <p id="dropText">Drag and drop a video here (max <span class="maxmb">300</span> MB)</p>
-        <button class="btn dark" id="pick">Choose video</button>
+           <div class="drop-empty" id="dropEmpty">
+        <span class="drop-ic" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+        <p id="dropText">Drag and drop a video here</p>
+        <button class="btn dark" id="pick"><i class="fa-solid fa-upload"></i> Choose video</button>
+        <div class="drop-fmts">
+          <span>MP4</span><span>MOV</span><span>WEBM</span><span>MPG</span>
+          <span class="sz">Max <b class="maxmb">300</b> MB</span>
+        </div>
       </div>
       <div class="fname" id="fname"></div>
       <div class="preview" id="preview"></div>
@@ -111,7 +116,8 @@
 
     <!-- Competitor box: 2 tabs + 1 ya 2 links (box ka size wahi) -->
 <div class="drop ct-drop hidden" id="ctInput">
-  <div class="ct-box">
+    <div class="ct-box">
+       
     <div class="ct-tabs" id="ctTabs">
       <button type="button" class="ct-tab" data-sub="tags"><i class="fa-solid fa-magnifying-glass"></i> Tag Finder</button>
       <button type="button" class="ct-tab" data-sub="plan"><i class="fa-solid fa-calendar-days"></i> Channel Planner</button>
@@ -127,10 +133,18 @@
 <div class="drop pm-drop hidden" id="pmInput">
   <input type="file" id="pmFile" accept="video/*" class="hidden">
   <div class="pm-box">
-    <div class="pm-vid">
-      <button type="button" class="btn sm ghost" id="pmPick"><i class="fa-solid fa-video"></i> Add a video (optional)</button>
+               <div class="pm-vid pm-up">
+      <span class="drop-ic sm" id="pmIc" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+      <div class="pm-up-txt">
+        <div class="pm-pickrow">
+          <button type="button" class="btn sm ghost" id="pmPick"><i class="fa-solid fa-video"></i> Choose video (optional)</button>
+          <button type="button" class="pm-x hidden" id="pmClear" aria-label="Remove video">&times;</button>
+        </div>
+        <div class="drop-fmts left">
+          <span>MP4</span><span>MOV</span><span>WEBM</span>
+        </div>
+      </div>
       <span class="pm-fname hidden" id="pmFname"></span>
-      <button type="button" class="pm-x hidden" id="pmClear" aria-label="Remove video">&times;</button>
     </div>
     <textarea id="pmDesc" maxlength="1500" placeholder="Describe your idea (optional)"></textarea>
         <div class="pm-dur">
@@ -141,11 +155,14 @@
       </div>
       <input id="pmSecs" type="text" inputmode="numeric" maxlength="2" placeholder="Custom" autocomplete="off" aria-label="Custom scene length in seconds">
     </div>
-    <div class="pm-opts">
+        <div class="pm-dur pm-ratio">
+      <span class="pm-lbl">ASPECT Ratio</span>
       <div class="seg" id="pmFmt">
-        <button type="button" class="on" data-f="tall">Vertical 9:16</button>
-        <button type="button" data-f="wide">Wide 16:9</button>
+        <button type="button" class="on" data-f="tall">9:16</button>
+        <button type="button" data-f="wide">16:9</button>
       </div>
+    </div>
+    <div class="pm-opts">
       <button class="btn" id="pmGo" disabled>Make prompt</button>
     </div>
   </div>
@@ -154,9 +171,14 @@
 <div class="drop wm-drop hidden" id="wmInput">
   <input type="file" id="wmFile" accept="video/*" class="hidden">
   
-  <div class="drop-empty" id="wmDropEmpty">
-    <p id="wmDropText">Drag and drop a Gemini video here to remove watermark</p>
-    <button class="btn dark" id="wmPick">Choose video</button>
+    <div class="drop-empty" id="wmDropEmpty">
+    <span class="drop-ic" aria-hidden="true"><i class="fa-solid fa-eraser"></i></span>
+    <p id="wmDropText">Drop your Gemini video here</p>
+    <button class="btn dark" id="wmPick"><i class="fa-solid fa-upload"></i> Choose video</button>
+    <div class="drop-fmts">
+      <span>MP4</span><span>MOV</span><span>WEBM</span><span>MPG</span>
+      <span class="sz">Max <b class="maxmb">300</b> MB</span>
+    </div>
   </div>
   
   <div class="fname" id="wmFname"></div>
@@ -192,7 +214,7 @@
               tg: "Suggestion", ti: BULB, cl: "Tags & Hashtags", ci: HASH, pl: "Video Prompt", pi: FILM },
       prompt: { t: "Turn any idea into an AI video prompt", s: "Add a video, an idea, or both",
               tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Tags & Hashtags", pi: HASH },
-      wm:   { t: "Remove watermark from your video", s: "Clean, fast and invisible. Powered by Trenndly AI.",
+      wm:   { t: "Remove watermark from your video", s: "Clean, fast and invisible",
               tg: "Suggestion", ti: BULB, cl: "Competitor", ci: CHART, pl: "Video Prompt", pi: FILM }
     }[m];
     var g = function (i) { return document.getElementById(i); };
@@ -446,15 +468,15 @@
         </div>
       </div>
     </div>
-    <p class="trust">No credit card needed. Coins refill every day. Your video is used only to create your results.</p>
+    <p class="trust">No credit card needed. Coins refill every day. Your video is used only to create your results</p>
   </main>
 
   <section class="sec" id="how">
     <h2 class="rv">How it works</h2>
     <div class="steps">
-      <div class="step rv"><b>1</b><h3>Upload your video</h3><p>Choose any video up to <span class="maxmb">300</span> MB from your phone or computer.</p></div>
-      <div class="step rv"><b>2</b><h3>AI watches it fully</h3><p>Trenndly reviews the visuals and the audio to understand your content.</p></div>
-      <div class="step rv"><b>3</b><h3>Copy and publish</h3><p>Get ready-to-use SEO data and paste it straight into YouTube.</p></div>
+      <div class="step rv"><b>1</b><h3>Upload your video</h3><p>Choose any video up to <span class="maxmb">300</span> MB from your phone or computer</p></div>
+      <div class="step rv"><b>2</b><h3>AI watches it fully</h3><p>Trenndly reviews the visuals and the audio to understand your content</p></div>
+      <div class="step rv"><b>3</b><h3>Copy and publish</h3><p>Get ready-to-use SEO data and paste it straight into YouTube</p></div>
     </div>
   </section>
 
@@ -465,7 +487,7 @@
       <div class="smp-card rv">
         <div class="smp-score">
           <svg width="72" height="72" viewBox="0 0 44 44" role="img" aria-label="SEO score 82"><circle cx="22" cy="22" r="19" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="22" cy="22" r="19" fill="none" stroke="var(--green)" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="21" transform="rotate(-90 22 22)"/><text x="22" y="26.5" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">82</text></svg>
-          <div><h3>SEO score</h3><p>Good, ready to use.</p></div>
+          <div><h3>SEO score</h3><p>Good, ready to use</p></div>
         </div>
         <div class="smp-h">Tags</div>
         <div class="smp-chips"><span>easy pasta recipe</span><span>quick dinner ideas</span><span>home cooking</span><span>15 minute meals</span></div>
@@ -486,14 +508,15 @@
   <section class="sec band" id="tools">
     <div class="in-wrap">
       <h2 class="rv">Everything you need to publish with confidence</h2>
-      <p class="sec-lead rv">Six free tools in one place</p>
+      <p class="sec-lead rv">Seven free tools in one place</p>
       <div class="cards">
-        <div class="card rv"><span class="fi">1</span><h3>Tags, hashtags &amp; titles</h3><p>SEO-ready tags, keywords and five title ideas, with an estimated SEO score.</p></div>
-        <div class="card rv"><span class="fi">2</span><h3>Hook check</h3><p>Score the first 10 seconds of your video and get stronger opening lines.</p></div>
-        <div class="card rv"><span class="fi">3</span><h3>Tag Finder</h3><p>Paste any YouTube link to see its tags, stats and viral score.</p></div>
-        <div class="card rv"><span class="fi">4</span><h3>Competitor compare</h3><p>See which tags your competitor uses that your video is missing.</p></div>
-        <div class="card rv"><span class="fi">5</span><h3>Channel Planner</h3><p>Find the best weekday to upload, based on your channel's past views.</p></div>
-        <div class="card rv"><span class="fi">6</span><h3>AI video prompt</h3><p>Turn an idea or video into scene-by-scene prompts for AI video tools.</p></div>
+        <div class="card rv"><span class="fi">1</span><h3>Tags, hashtags &amp; titles</h3><p>SEO-ready tags, keywords and five title ideas, with an estimated SEO score</p></div>
+        <div class="card rv"><span class="fi">2</span><h3>Hook check</h3><p>Score the first 10 seconds of your video and get stronger opening lines</p></div>
+        <div class="card rv"><span class="fi">3</span><h3>Tag Finder</h3><p>Paste any YouTube link to see its tags, stats and viral score</p></div>
+        <div class="card rv"><span class="fi">4</span><h3>Competitor compare</h3><p>See which tags your competitor uses that your video is missing</p></div>
+        <div class="card rv"><span class="fi">5</span><h3>Channel Planner</h3><p>Find the best weekday to upload, based on your channel's past views</p></div>
+        <div class="card rv"><span class="fi">6</span><h3>AI video prompt</h3><p>Turn an idea or video into scene-by-scene prompts for AI video tools</p></div>
+        <div class="card rv"><span class="fi">7</span><h3>Watermark Remover</h3><p>Remove the visible watermark from your Gemini or Veo videos</p></div>
       </div>
     </div>
   </section>
@@ -524,7 +547,7 @@
   <section class="cta rv" id="ctaBand">
     <div>
       <h2>Optimize your next video in under a minute</h2>
-      <p>Sign up free and use your daily coins.</p>
+      <p>Sign up free and use your daily coins</p>
       <button class="btn" type="button" onclick="document.getElementById('openSignup').click()">Get started free</button>
     </div>
   </section>
@@ -538,7 +561,7 @@
 <a href="terms.html" class="foot-link">Terms</a>
     <a href="privacy-policy.html" class="foot-link">FAQ &amp; Features</a>
     <a href="#" class="foot-link hidden" id="fbLink">Contact us</a>
-    <span>&copy; <span id="yr"></span> Trenndly. All rights reserved.</span>
+    <span>&copy; <span id="yr"></span> Trenndly. All rights reserved</span>
   </footer>
   <button class="fab hidden" id="fbOpen" aria-label="Share a problem or feedback">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -588,7 +611,7 @@
   <div class="modal">
     <div class="done-ic"></div>
     <h2>Profile complete</h2>
-    <p>Your account is ready. Let's optimize your first video.</p>
+    <p>Your account is ready. Let's optimize your first video</p>
     <button class="btn wide" id="doneGo">Let's go</button>
   </div>
 </div>
@@ -607,10 +630,12 @@
         <div class="msg" id="authMsg" role="alert"></div>
     <div class="auth-switch"><span id="switchText">Don't have an account?</span> <a id="switchLink" href="#">Sign up</a></div>
     <div class="or"><span>OR</span></div>
-    <button class="alt" id="googleBtn">
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
-      Continue with Google
-    </button>
+        <div class="g-wrap" id="googleBtn">
+      <button class="alt" id="googleFallback" type="button">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+    </div>
   </div>
 </section>
 <!-- ============ ADMIN NOTICE (blocking, no close) ============ -->
@@ -708,7 +733,7 @@
         <span class="fb-ic" aria-hidden="true"><i class="fa-regular fa-comment-dots"></i></span>
         <div>
           <h2 id="fbTitle">Share your problem</h2>
-          <p>Tell us what went wrong or how we can improve. We reply on your account email.</p>
+          <p>Tell us what went wrong or how we can improve. We reply on your account email</p>
         </div>
       </div>
 
@@ -728,7 +753,7 @@
     <div id="fbDone" class="hidden">
       <div class="done-ic"></div>
       <h2>Thank you!</h2>
-      <p>We received your message and will look into it.</p>
+      <p>We received your message and will look into it</p>
       <button class="btn wide" id="fbOk">Done</button>
     </div>
   </div>
@@ -866,6 +891,7 @@
   }
 })();
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
