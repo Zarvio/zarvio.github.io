@@ -11,16 +11,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>try{if(localStorage.getItem("trendly_auth")==="1")document.documentElement.classList.add("was-in");var th=localStorage.getItem("trendly_theme");if(th==="dark"||th==="light")document.documentElement.dataset.theme=th}catch(e){}</script>
+<script>try{if(localStorage.getItem("trendly_auth")==="1"){document.documentElement.classList.add("was-in");var sv=JSON.parse(localStorage.getItem("trendly_view")||"null");if(sv&&sv.v==="story")document.documentElement.classList.add("was-story")}var th=localStorage.getItem("trendly_theme");if(th==="dark"||th==="light")document.documentElement.dataset.theme=th;var pm=localStorage.getItem("trendly_mode");if(pm==="hook"||pm==="ct"||pm==="prompt"||pm==="wm"){document.documentElement.classList.add("pre-mode");setTimeout(function(){document.documentElement.classList.remove("pre-mode")},2500)}}catch(e){}</script>
 <link rel="icon" type="image/png" sizes="any" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <link rel="shortcut icon" type="image/png" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <link rel="apple-touch-icon" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-  <script type="module" crossorigin src="./assets/main-tkUCBFRi.js"></script>
+  <script type="module" crossorigin src="./assets/main-B5XpC3Yl.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-axk1WA_r.js">
-  <link rel="stylesheet" crossorigin href="./assets/main-HNrVrHSX.css">
-  <link rel="stylesheet" crossorigin href="./assets/style-d57M2iOZ.css">
+  <link rel="stylesheet" crossorigin href="./assets/main-CzRyLRSl.css">
+  <link rel="stylesheet" crossorigin href="./assets/style-hxWlFIXo.css">
 </head>
 <body>
 
@@ -203,6 +203,7 @@
 <script>
 (function () {
   try {
+    document.documentElement.classList.remove("pre-mode");
     var m = localStorage.getItem("trendly_mode");
     if (m !== "hook" && m !== "ct" && m !== "prompt" && m !== "wm") return;
     var FILM = '<i class="fa-solid fa-film"></i>', HASH = '<i class="fa-solid fa-hashtag"></i>',
@@ -358,10 +359,10 @@
         <header><h3><span id="pmTitle">Your video plan</span><small id="pmMeta"></small></h3></header>
         <p class="hcur" id="pmSummary"></p>
       </div>
-                 <div class="box hidden" id="pmSheetBox">
-        <header><h3>Step 1: Reference image<small>one image with everything</small></h3><button class="btn sm ghost" data-copy="pmSheet">Copy</button></header>
-        <textarea id="pmSheet" readonly></textarea>
-      </div>
+<div class="box hidden" id="pmCharBox">
+  <header><h3>Character image<small>make this one image first</small></h3><button class="btn sm ghost" data-copy="pmCharSheet">Copy</button></header>
+  <textarea id="pmCharSheet" readonly></textarea>
+</div>
       <div class="box hidden" id="pmFirstBox">
         <header><h3>First frame image<small>how your video starts</small></h3><button class="btn sm ghost" data-copy="pmFirst">Copy</button></header>
         <textarea id="pmFirst" readonly></textarea>
@@ -370,19 +371,9 @@
         <header><h3>Last frame image<small>how your video ends</small></h3><button class="btn sm ghost" data-copy="pmLastImg">Copy</button></header>
         <textarea id="pmLastImg" readonly></textarea>
       </div>
-      <div class="pm-guide hidden" id="pmGuide">
-        <h3>How to use these prompts</h3>
-        <ol class="tips">
-          <li>Copy the reference prompt above and paste it in any AI image tool. Make 1 image.</li>
-          <li>Save that image. In your AI video tool, attach it as the reference image for every scene.</li>
-          <li>Now copy the scene prompts below one by one and generate each clip. The character, place and items will stay the same.</li>
-        </ol>
-      </div>
-      <div class="box hidden" id="pmSeenBox">
-        <header><h3>What I understood from your video</h3></header>
-        <ul class="tips" id="pmSeen"></ul>
-      </div>
-      <div class="box">
+
+      <!-- MAIN BOX: scene prompts -->
+      <div class="box pm-main">
         <header><h3>Script, scene by scene<small id="pmSceneInfo"></small></h3><button class="btn sm ghost" id="pmCopyAll">Copy all prompts</button></header>
         <div class="pm-scenes" id="pmScenes"></div>
       </div>
@@ -390,6 +381,10 @@
       <div class="box hidden" id="pmAvoidBox">
         <header><h3>Negative prompt<small>optional</small></h3><button class="btn sm ghost" data-copy="pmAvoid">Copy</button></header>
         <textarea id="pmAvoid" readonly></textarea>
+      </div>
+      <div class="box hidden" id="pmSeenBox">
+        <header><h3>What I understood from your video</h3></header>
+        <ul class="tips" id="pmSeen"></ul>
       </div>
       <div class="box hidden" id="pmTipsBox">
         <header><h3>Quick tips</h3></header>
@@ -587,8 +582,62 @@
       <button data-f="ct"><i class="fa-solid fa-magnifying-glass"></i> Tag Finder</button>
       <button data-f="cmp"><i class="fa-solid fa-chart-line"></i> Competitor</button>
       <button data-f="pm"><i class="fa-solid fa-film"></i> Video Prompt</button>
+            <button data-f="story"><i class="fa-solid fa-wand-magic-sparkles"></i> Stories</button>
     </div>
     <div class="hlist" id="hList"></div>
+  </div>
+</section>
+<!-- ============ VIRAL STORIES ============ -->
+<section id="storyView" class="hidden">
+  <header class="top">
+    <div class="left">
+      <button class="menu-btn" id="stBack" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="brand">Viral Stories</span>
+    </div>
+  </header>
+  <div class="hmain">
+    <div id="stPick">
+      <h1 class="st-h">Viral trending stories</h1>
+      <p class="st-p">Pick a story style</p>
+      <div class="st-grid">
+        <button class="st-card" data-t="sheru" type="button">
+          <span class="st-img" style="background-image:url('./assets/sheru-DqLIeaqN.jpg')"></span>
+          <b>Sheru Bhai</b><small>Lion Man, luxury and drama</small>
+        </button>
+                <div class="st-soon" aria-disabled="true">
+          <span class="st-img"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></span>
+          <span class="st-soon-badge">Coming soon</span>
+          <b>***</b><small>A new story world is on the way</small>
+        </div>
+      </div>
+    </div>
+
+    <div id="stSetup" class="hidden">
+      <button class="btn sm ghost" id="stChange" type="button">&larr; Change style</button>
+      <h2 class="st-h" id="stName"></h2>
+      <div class="st-row">
+        <span class="st-lbl">Scene length</span>
+        <div class="seg" id="stSecs" style="margin:0">
+          <button type="button" data-s="8">8 sec</button>
+          <button type="button" class="on" data-s="10">10 sec</button>
+        </div>
+      </div>
+      <div class="st-row">
+        <span class="st-lbl">Video length (sec)</span>
+        <input id="stTotal" type="text" inputmode="numeric" maxlength="2" value="30" autocomplete="off" aria-label="Video length in seconds">
+        <small id="stCount">3 scenes</small>
+      </div>
+      <button class="btn wide" id="stGen" type="button">Generate 5 stories</button>
+      <div class="err hidden" id="stErr" role="alert"></div>
+      <div class="hlist" id="stIdeas" style="margin-top:18px"></div>
+    </div>
+
+    <div id="stResult" class="hidden">
+      <button class="btn sm ghost" id="stAgain" type="button">&larr; Other stories</button>
+      <div class="results" id="stOut"></div>
+    </div>
   </div>
 </section>
 <!-- ============ COMPLETE PROFILE (after Google) ============ -->
@@ -688,6 +737,11 @@
 
     <div class="nav-h">Tools</div>
     <nav class="drawer-nav">
+            <button class="nav-item" id="navStory">
+        <span class="nav-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <span>Viral Stories</span>
+        <span class="hot-badge" aria-hidden="true">HOT</span>
+      </button>
       <button class="nav-item" id="navHistory">
         <span class="nav-ic"><i class="fa-solid fa-clock-rotate-left"></i></span>
         <span>History</span>
