@@ -17,10 +17,10 @@
 <link rel="apple-touch-icon" href="./assets/logo-Bx-P9irx.jpg?v=2">
 <meta name="theme-color" content="#10A37F">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
-  <script type="module" crossorigin src="./assets/main-f7OFiHqj.js"></script>
+  <script type="module" crossorigin src="./assets/main-M_i2YV1P.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-axk1WA_r.js">
   <link rel="stylesheet" crossorigin href="./assets/main-Cig7nf0a.css">
-  <link rel="stylesheet" crossorigin href="./assets/style-hxWlFIXo.css">
+  <link rel="stylesheet" crossorigin href="./assets/style-CoDl8rWR.css">
 </head>
 <body>
 
@@ -54,7 +54,16 @@
         <button class="btn ghost" id="openLogin">Log in</button>
         <button class="btn" id="openSignup">Sign up</button>
       </div>
-
+      <span class="sk-av" id="skSpin" aria-hidden="true"></span>
+      <span class="sk-av" id="skFb" aria-hidden="true"></span>
+      <div class="hdr-quick hidden" id="hdrQuick">
+        <button class="icon-btn" id="hSpin" type="button" aria-label="Winter Spin" title="Spin &amp; win">
+          <i class="fa-solid fa-snowflake"></i>
+        </button>
+        <button class="icon-btn" id="hFb" type="button" aria-label="Feedback" title="Feedback">
+          <i class="fa-regular fa-comment-dots"></i>
+        </button>
+      </div>
       <span class="sk-av" id="skAvatar" aria-hidden="true"></span>
       <div id="userMenu" class="usermenu hidden">
         <button class="avatar" id="avatarBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu"></button>
@@ -558,6 +567,7 @@
     <a href="#" class="foot-link hidden" id="fbLink">Contact us</a>
     <span>&copy; <span id="yr"></span> Trenndly. All rights reserved</span>
   </footer>
+    
   <button class="fab hidden" id="fbOpen" aria-label="Share a problem or feedback">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     <span>Feedback</span>
@@ -606,11 +616,7 @@
           <span class="st-img" style="background-image:url('./assets/sheru-DTKlT5E6.jpg')"></span>
           <b>Sheru Bhai</b><small>Lion Man, luxury and drama</small>
         </button>
-                <div class="st-soon" aria-disabled="true">
-          <span class="st-img"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></span>
-          <span class="st-soon-badge">Coming soon</span>
-          <b>***</b><small>A new story world is on the way</small>
-        </div>
+
       </div>
     </div>
 
@@ -682,7 +688,6 @@
         <div class="g-wrap" id="googleBtn">
   <div class="g-skel" id="gSkel"></div>
   <div class="g-real" id="gReal"></div>
-  <button class="alt" id="googleFallback" type="button">
       <button class="alt" id="googleFallback" type="button">
         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
         Continue with Google
@@ -737,11 +742,6 @@
 
     <div class="nav-h">Tools</div>
     <nav class="drawer-nav">
-            <button class="nav-item" id="navStory">
-        <span class="nav-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-        <span>Viral Stories</span>
-        <span class="hot-badge" aria-hidden="true">HOT</span>
-      </button>
       <button class="nav-item" id="navHistory">
         <span class="nav-ic"><i class="fa-solid fa-clock-rotate-left"></i></span>
         <span>History</span>
@@ -774,6 +774,18 @@
     </div>
   </div>
 </aside>
+<nav class="bnav" aria-label="Bottom navigation">
+      <span class="bnav-pill" aria-hidden="true"></span>
+    <button class="bnav-btn on" id="bnHome" type="button">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </button>
+    <button class="bnav-btn" id="navStory" type="button">
+      <i class="fa-solid fa-wand-magic-sparkles"></i>
+      <span>Viral Stories</span>
+      <span class="hot-badge" aria-hidden="true">HOT</span>
+    </button>
+  </nav>
 
 <!-- ============ FIRST-TIME TUTORIAL ============ -->
 <div class="tut hidden" id="tut" aria-live="polite">
